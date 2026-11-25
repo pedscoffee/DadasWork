@@ -8,6 +8,8 @@ const DADAS_GAMES = [
     { file: 'submarine.html', emoji: '🌊', name: 'Submarine' },
     { file: 'excavator.html', emoji: '🚜', name: 'Excavator' },
     { file: 'christmas-tree.html', emoji: '🎄', name: 'Christmas Tree' },
+    { file: 'turkey-feathers.html', emoji: '🦃', name: 'Dress the Turkey' },
+    { file: 'rocket-builder.html', emoji: '🚀', name: 'Rocket Builder' },
     { file: 'dump-truck.html', emoji: '🚚', name: 'Dump Truck' },
     { file: 'letter-train.html', emoji: '🚂', name: 'Letter Train' },
     { file: 'feed-animals.html', emoji: '🥕', name: 'Feed the Animals' },

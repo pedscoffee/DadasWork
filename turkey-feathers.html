@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>🦃 Dress the Turkey</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+        html, body { width: 100%; height: 100%; overflow: hidden; touch-action: manipulation; position: fixed; font-family: 'Arial Rounded MT Bold', 'Chalkboard SE', 'Comic Sans MS', sans-serif; }
+        body { background: linear-gradient(180deg, #ffd8a8 0%, #ffe8cc 55%, #c9a227 55%, #b08a1e 100%); display: flex; flex-direction: column; align-items: center; }
+
+        .leaf { position: fixed; top: -50px; font-size: clamp(22px, 4vw, 36px); pointer-events: none; animation: leafFall linear infinite; opacity: .85; z-index: 0; }
+        @keyframes leafFall { 0% { transform: translate(0, 0) rotate(0); } 50% { transform: translate(40px, 55vh) rotate(180deg); } 100% { transform: translate(-20px, 112vh) rotate(360deg); } }
+
+        #prompt { position: relative; z-index: 5; margin: max(12px, 2vh) 70px 0; max-width: calc(100vw - 140px); padding: 6px 18px; background: rgba(255, 255, 255, .9); border: 4px solid #e76f51; border-radius: 30px;
+            font-size: clamp(18px, 4vw, 32px); color: #6a3e1f; text-align: center; box-shadow: 0 6px 14px rgba(120, 60, 20, .2); }
+        #prompt b { color: #d62828; font-size: 1.35em; }
+
+        #stage { position: relative; z-index: 2; flex: 1; min-height: 0; width: 100%; padding: 0 2vw; display: flex; align-items: center; justify-content: center; }
+        #turkey { width: 100%; height: 100%; max-height: 64vh; overflow: visible; cursor: pointer; }
+        .feather { cursor: pointer; }
+        .feather.new .fi { animation: featherIn .45s cubic-bezier(.3, 1.6, .5, 1); }
+        .label { cursor: pointer; }
+        .label.new { animation: featherIn .45s ease; transform-box: fill-box; transform-origin: center; }
+        @keyframes featherIn { from { transform: scale(0); } }
+        .num { font: bold 26px 'Arial Rounded MT Bold', Arial, sans-serif; fill: #6a3e1f; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+        .tag { fill: #fff; stroke: #6a3e1f; stroke-width: 3; }
+        .feather.lit path { filter: brightness(1.35) drop-shadow(0 0 8px #fff3b0); }
+        .label.counted .tag { fill: #ffe066; }
+        #turkey.gobble #body-group { animation: gobble .18s ease-in-out 4 alternate; transform-origin: 200px 300px; transform-box: view-box; }
+        @keyframes gobble { to { transform: rotate(4deg) scale(1.03); } }
+
+        #bottom { position: relative; z-index: 5; width: 100%; display: flex; align-items: center; justify-content: center; gap: 3vw; padding: 1vh 3vw max(14px, 2vh); }
+        #count { min-width: 2ch; font-size: clamp(54px, 12vw, 110px); font-weight: bold; color: #fff; text-shadow: 0 5px 0 #8c5a2b, 0 0 20px rgba(0, 0, 0, .15); text-align: center; line-height: 1; }
+        #frames { display: grid; grid-template-columns: repeat(10, var(--cell)); gap: 4px; --cell: min(6.2vw, 5vh, 40px); background: #6a3e1f; padding: 6px; border-radius: 12px; }
+        #frames .cell { width: var(--cell); height: var(--cell); background: #fff8e7; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: calc(var(--cell) * .7); }
+                #frames .cell.on { animation: cellPop .3s ease; }
+        @keyframes cellPop { 50% { transform: scale(1.3); } }
+        #add-btn { width: min(22vw, 15vh, 130px); height: min(22vw, 15vh, 130px); border-radius: 50%; border: 6px solid #fff; background: radial-gradient(circle at 35% 30%, #ffb347, #e76f51); font-size: min(11vw, 8vh, 64px); cursor: pointer; box-shadow: 0 7px 0 #9c4a2f; flex-shrink: 0; }
+        #add-btn:active { transform: translateY(4px); box-shadow: 0 3px 0 #9c4a2f; }
+        #add-btn.hidden { visibility: hidden; }
+
+        @media (max-width: 620px) {
+            #bottom { flex-wrap: wrap; row-gap: 8px; }
+            #frames { order: 3; --cell: min(7.4vw, 4.4vh, 34px); gap: 3px; }
+            #count { font-size: clamp(44px, 13vw, 70px); }
+            #add-btn { width: min(20vw, 11vh, 86px); height: min(20vw, 11vh, 86px); font-size: min(10vw, 6vh, 44px); }
+        }
+
+        #choices { position: fixed; left: 0; right: 0; bottom: 22vh; display: flex; justify-content: center; gap: 4vw; z-index: 20; }
+        #choices.hidden { display: none; }
+        .choice { width: min(24vw, 17vh, 140px); height: min(24vw, 17vh, 140px); border-radius: 26px; border: 6px solid #fff; font: inherit; font-weight: bold; font-size: min(13vw, 10vh, 80px); color: #fff; cursor: pointer; box-shadow: 0 8px 0 rgba(0, 0, 0, .25); }
+        .choice.wiggle { animation: wiggle .4s ease; }
+        .choice.hint { animation: hintPulse .8s ease-in-out infinite alternate; }
+        @keyframes wiggle { 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
+        @keyframes hintPulse { to { transform: scale(1.12); box-shadow: 0 0 30px #fff, 0 8px 0 rgba(0, 0, 0, .25); } }
+
+        #score { position: fixed; top: 14px; right: 14px; z-index: 10; background: rgba(255, 255, 255, .85); border-radius: 30px; padding: 6px 14px; font-size: clamp(16px, 3.2vw, 24px); }
+
+        /* Shared game menu (list filled by games.js) */
+        #game-nav { position: fixed; top: 12px; left: 12px; z-index: 2000; }
+        #nav-toggle { background: rgba(0, 0, 0, 0.45); border: 2px solid rgba(255, 255, 255, 0.6); color: #fff; font-size: 24px; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; }
+        #nav-overlay { position: fixed; inset: 0; background: rgba(10, 10, 30, 0.95); z-index: 2001; display: flex; align-items: center; justify-content: center; transition: opacity .3s; }
+        #nav-overlay.hidden { opacity: 0; pointer-events: none; }
+        #nav-close { position: absolute; top: 24px; right: 24px; background: none; border: none; color: #fff; font-size: 40px; cursor: pointer; }
+        .nav-links { display: flex; flex-direction: column; gap: 12px; text-align: center; max-height: 85vh; overflow-y: auto; padding: 10px; }
+        .nav-links a { color: #fff; text-decoration: none; font-size: 22px; padding: 10px 30px; border-radius: 30px; background: rgba(255, 255, 255, 0.1); }
+
+        .screen { position: fixed; inset: 0; z-index: 1500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(255, 216, 168, 0.95); text-align: center; padding: 20px; }
+        .screen.hidden { display: none; }
+        .screen h1 { font-size: clamp(36px, 8vw, 72px); color: #fff; text-shadow: 0 4px 0 #9c4a2f; }
+        .screen p { font-size: clamp(18px, 3.5vw, 26px); color: #6a3e1f; }
+        .big-btn { font: inherit; font-size: clamp(24px, 5vw, 36px); padding: 16px 48px; border-radius: 50px; border: 5px solid #fff; background: linear-gradient(135deg, #f4a261, #e76f51); color: #fff; cursor: pointer; box-shadow: 0 8px 0 #9c4a2f; }
+        .rain { position: fixed; top: -60px; font-size: clamp(30px, 6vw, 56px); pointer-events: none; z-index: 1400; animation: fall linear forwards; }
+        @keyframes fall { to { transform: translateY(115vh) rotate(360deg); } }
+    </style>
+</head>
+
+<body>
+    <div id="leaves"></div>
+    <div id="prompt">Let's dress the turkey!</div>
+    <div id="stage">
+        <svg id="turkey" viewBox="-45 0 490 400" aria-label="Turkey">
+            <g id="feathers"></g>
+            <g id="body-group">
+                <!-- feet -->
+                <path d="M170 350 l-14 26 m14 -26 l0 28 m0 -28 l14 26" stroke="#f4a261" stroke-width="7" stroke-linecap="round" fill="none" />
+                <path d="M230 350 l-14 26 m14 -26 l0 28 m0 -28 l14 26" stroke="#f4a261" stroke-width="7" stroke-linecap="round" fill="none" />
+                <!-- body -->
+                <ellipse cx="200" cy="285" rx="88" ry="80" fill="#8c5a2b" />
+                <ellipse cx="200" cy="300" rx="58" ry="55" fill="#b07a45" />
+                <!-- wings -->
+                <ellipse cx="128" cy="292" rx="26" ry="46" fill="#6f4420" transform="rotate(18 128 292)" />
+                <ellipse cx="272" cy="292" rx="26" ry="46" fill="#6f4420" transform="rotate(-18 272 292)" />
+                <!-- head -->
+                <circle cx="200" cy="205" r="42" fill="#a0693a" />
+                <circle cx="184" cy="198" r="10" fill="#fff" />
+                <circle cx="216" cy="198" r="10" fill="#fff" />
+                <circle cx="186" cy="200" r="5.5" fill="#222" />
+                <circle cx="214" cy="200" r="5.5" fill="#222" />
+                <path d="M191 212 L209 212 L200 228 Z" fill="#ffb703" />
+                <path d="M205 219 q13 9 6 30 q-9 6 -11 -5 q-2 -16 5 -25 Z" fill="#d62828" />
+                <!-- pilgrim hat -->
+                <rect x="172" y="132" width="56" height="36" rx="5" fill="#222" />
+                <rect x="158" y="164" width="84" height="10" rx="5" fill="#222" />
+                <rect x="172" y="154" width="56" height="8" fill="#6a3e1f" />
+                <rect x="192" y="152" width="16" height="12" rx="2" fill="none" stroke="#ffd166" stroke-width="3.5" />
+            </g>
+            <g id="labels"></g>
+        </svg>
+    </div>
+    <div id="bottom">
+        <div id="count">0</div>
+        <div id="frames"></div>
+        <button id="add-btn" aria-label="Add a feather">🪶</button>
+    </div>
+    <div id="choices" class="hidden"></div>
+    <div id="score">🦃 0</div>
+
+    <div id="game-nav"><button id="nav-toggle" aria-label="Games">☰</button></div>
+    <div id="nav-overlay" class="hidden">
+        <button id="nav-close" aria-label="Close">✕</button>
+        <div class="nav-links"><!-- filled from games.js --></div>
+    </div>
+
+    <div id="start" class="screen">
+        <h1>🦃 Dress the Turkey 🍂</h1>
+        <p>The turkey needs his feathers for Thanksgiving!</p>
+        <p>Count feathers all the way to 20.</p>
+        <button class="big-btn" id="start-btn">Gobble Gobble!</button>
+    </div>
+
+    <script>
+        // ============================================
+        // DRESS THE TURKEY — counting to 20
+        // Round types: "give" (add N feathers), "on" (count on from some
+        // feathers to N), "how" (count the feathers, then pick the number).
+        // Feathers 1–10 make the big back row, 11–20 the front row, and
+        // the ten-frame below shows "10 and some more".
+        // ============================================
+        const COLORS = ['#d62828', '#f77f00', '#fcbf49', '#8c5a2b', '#9d0208', '#e76f51', '#e9c46a', '#bc6c25', '#a44a3f', '#f4a261'];
+        const CHOICE_COLORS = ['#e76f51', '#2a9d8f', '#f4a261', '#9b5de5', '#457b9d'];
+        const PIVOT = { x: 200, y: 270 };
+        const SEQUENCE = ['give', 'give', 'on', 'how'];
+
+        const feathersG = document.getElementById('feathers');
+        const turkeySvg = document.getElementById('turkey');
+        const framesEl = document.getElementById('frames');
+        const countEl = document.getElementById('count');
+        const promptEl = document.getElementById('prompt');
+        const addBtn = document.getElementById('add-btn');
+        const choicesEl = document.getElementById('choices');
+
+        let mode = 'give', goal = 15, count = 0, counted = 0, round = 0, busy = true, turkeys = 0, misses = 0;
+        let feathers = [];
+
+        // ---------- Sound & speech ----------
+        let AC = null;
+        function tone(freq, dur = 0.15, type = 'sine', vol = 0.2, slideTo, delay = 0) {
+            try {
+                AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+                if (AC.state === 'suspended') AC.resume();
+                const now = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+                o.type = type; o.frequency.setValueAtTime(freq, now);
+                if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, now + dur);
+                g.gain.setValueAtTime(0.0001, AC.currentTime);
+                g.gain.setValueAtTime(vol, now); g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+                o.connect(g).connect(AC.destination); o.start(now); o.stop(now + dur);
+            } catch (e) { }
+        }
+        function say(text) {
+            try {
+                if (!('speechSynthesis' in window)) return;
+                speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.rate = 0.9; u.pitch = 1.15;
+                speechSynthesis.speak(u);
+            } catch (e) { }
+        }
+        const noteFor = (n) => 330 * Math.pow(2, ((n - 1) % 12) / 12) * (n > 12 ? 2 : 1);
+        function gobble() {
+            turkeySvg.classList.remove('gobble'); void turkeySvg.getBoundingClientRect(); turkeySvg.classList.add('gobble');
+            for (let i = 0; i < 5; i++) tone(260 + (i % 2) * 90, 0.07, 'sawtooth', 0.06, 200, i * 0.08);
+        }
+
+        // ---------- Scenery ----------
+        (function leaves() {
+            const box = document.getElementById('leaves');
+            for (let i = 0; i < 9; i++) {
+                const l = document.createElement('div');
+                l.className = 'leaf';
+                l.textContent = ['🍂', '🍁', '🍂'][i % 3];
+                l.style.left = Math.random() * 95 + 'vw';
+                l.style.animationDuration = (9 + Math.random() * 8) + 's';
+                l.style.animationDelay = (-Math.random() * 15) + 's';
+                box.appendChild(l);
+            }
+        })();
+
+        // ---------- Ten-frame ----------
+        function buildFrames() {
+            framesEl.innerHTML = '';
+            for (let i = 0; i < 20; i++) {
+                const c = document.createElement('div');
+                c.className = 'cell';
+                framesEl.appendChild(c);
+            }
+        }
+        function setFrames(n) {
+            [...framesEl.children].forEach((c, i) => {
+                const on = i < n;
+                if (on && !c.textContent) { c.textContent = '🪶'; c.classList.remove('on'); void c.offsetWidth; c.classList.add('on'); }
+                if (!on) c.textContent = '';
+            });
+            countEl.textContent = n;
+        }
+
+        // ---------- Feathers ----------
+        // slot k (0-based): 0–9 back row (long), 10–19 front row (shorter)
+        function featherGeom(k) {
+            const row = k < 10 ? 0 : 1, i = k % 10;
+            const angle = -78 + i * (156 / 9);
+            const len = row === 0 ? 225 : 172;
+            return { angle, len, row };
+        }
+        const labelsG = document.getElementById('labels');
+        const NS = 'http://www.w3.org/2000/svg';
+        function makeFeather(k, showNum) {
+            const { angle, len } = featherGeom(k);
+            const g = document.createElementNS(NS, 'g');
+            g.setAttribute('class', 'feather new');
+            g.setAttribute('transform', `translate(${PIVOT.x} ${PIVOT.y}) rotate(${angle})`);
+            const w = len > 200 ? 30 : 27;
+            const color = COLORS[k % COLORS.length];
+            g.innerHTML = `<g class="fi">
+                <path d="M0 0 C ${-w} -40 ${-w} ${-len + 34} 0 ${-len} C ${w} ${-len + 34} ${w} -40 0 0 Z" fill="${color}" stroke="rgba(0,0,0,.18)" stroke-width="2"/>
+                <path d="M0 -8 L0 ${-len + 12}" stroke="rgba(255,255,255,.45)" stroke-width="3"/></g>`;
+            // front row draws above back row
+            if (k < 10) feathersG.insertBefore(g, feathersG.firstChild); else feathersG.appendChild(g);
+            g.addEventListener('click', (e) => { e.stopPropagation(); tapFeather(k); });
+
+            // number tag lives in a top layer so the hat/head never hide it
+            const r = len - 26, rad = angle * Math.PI / 180;
+            const lab = document.createElementNS(NS, 'g');
+            lab.setAttribute('class', 'label new');
+            lab.setAttribute('transform', `translate(${PIVOT.x + r * Math.sin(rad)} ${PIVOT.y - r * Math.cos(rad)})`);
+            lab.innerHTML = `<circle class="tag" r="19"/><text class="num">${k + 1}</text>`;
+            lab.style.display = showNum ? 'inline' : 'none';
+            lab.addEventListener('click', (e) => { e.stopPropagation(); tapFeather(k); });
+            labelsG.appendChild(lab);
+            g.label = lab;
+
+            feathers[k] = g;
+            setTimeout(() => { g.classList.remove('new'); lab.classList.remove('new'); }, 500);
+            return g;
+        }
+        function showLabel(k, n) {
+            const lab = feathers[k].label;
+            lab.style.display = 'inline';
+            lab.classList.add('counted');
+            lab.querySelector('text').textContent = n;
+        }
+        function clearFeathers() {
+            feathersG.innerHTML = '';
+            labelsG.innerHTML = '';
+            feathers = [];
+        }
+
+        // ---------- Rounds ----------
+        function pickGoal() {
+            // He's solid to 13, so mostly practice 12–20 with an occasional warm-up
+            return Math.random() < 0.15 ? 7 + Math.floor(Math.random() * 5) : 12 + Math.floor(Math.random() * 9);
+        }
+
+        function newRound() {
+            mode = SEQUENCE[round % SEQUENCE.length];
+            round++;
+            goal = pickGoal();
+            count = 0; counted = 0; misses = 0;
+            clearFeathers();
+            setFrames(0);
+            choicesEl.classList.add('hidden');
+            addBtn.classList.remove('hidden');
+
+            if (mode === 'give') {
+                promptEl.innerHTML = `Give the turkey <b>${goal}</b> feathers!`;
+                say(`Give the turkey ${goal} feathers!`);
+            } else if (mode === 'on') {
+                const start = 6 + Math.floor(Math.random() * Math.max(1, Math.min(5, goal - 9)));
+                for (let k = 0; k < start; k++) makeFeather(k, true);
+                count = start;
+                setFrames(count);
+                promptEl.innerHTML = `He has <b>${start}</b>. Make it <b>${goal}</b>!`;
+                say(`The turkey has ${start} feathers. Make it ${goal}!`);
+            } else {
+                for (let k = 0; k < goal; k++) makeFeather(k, false);
+                addBtn.classList.add('hidden');
+                promptEl.innerHTML = `How many feathers? <b>Tap each one!</b>`;
+                say('How many feathers? Tap each one to count!');
+            }
+            busy = false;
+        }
+
+        function addFeather() {
+            if (busy || mode === 'how') return;
+            if (count >= goal) return;
+            makeFeather(count, true);
+            count++;
+            setFrames(count);
+            tone(noteFor(count), 0.18, 'triangle', 0.15);
+            say(String(count));
+            if (count === 10 && goal > 10) setTimeout(() => say('Ten! One full row!'), 500);
+            if (count >= goal) finish();
+        }
+
+        function tapFeather(k) {
+            if (busy) return;
+            if (mode !== 'how') { addFeather(); return; }
+            const g = feathers[k];
+            if (g.classList.contains('counted')) { say(g.label.querySelector('text').textContent); return; }
+            counted++;
+            g.classList.add('counted');
+            showLabel(k, counted);
+            setFrames(counted);
+            tone(noteFor(counted), 0.18, 'triangle', 0.15);
+            say(String(counted));
+            if (counted === goal) setTimeout(askHowMany, 700);
+        }
+
+        function askHowMany() {
+            busy = false;
+            promptEl.innerHTML = `So how many feathers?`;
+            say('So, how many feathers?');
+            const opts = new Set([goal]);
+            const near = [-2, -1, 1, 2].sort(() => Math.random() - 0.5);
+            for (const d of near) { if (opts.size >= 3) break; const v = goal + d; if (v >= 1 && v <= 20) opts.add(v); }
+            choicesEl.innerHTML = '';
+            [...opts].sort(() => Math.random() - 0.5).forEach((v, i) => {
+                const b = document.createElement('button');
+                b.className = 'choice';
+                b.textContent = v;
+                b.style.background = CHOICE_COLORS[i % CHOICE_COLORS.length];
+                b.addEventListener('click', () => pickAnswer(v, b));
+                choicesEl.appendChild(b);
+            });
+            choicesEl.classList.remove('hidden');
+        }
+
+        function pickAnswer(v, btn) {
+            if (busy) return;
+            if (v === goal) { choicesEl.classList.add('hidden'); finish(); return; }
+            misses++;
+            btn.classList.remove('wiggle'); void btn.offsetWidth; btn.classList.add('wiggle');
+            tone(220, 0.15, 'sine', 0.12, 180);
+            say(`That's ${v}. The last number you counted was ${goal}!`);
+            if (misses >= 1) [...choicesEl.children].forEach(b => { if (+b.textContent === goal) b.classList.add('hint'); });
+        }
+
+        function finish() {
+            busy = true;
+            turkeys++;
+            document.getElementById('score').textContent = '🦃 ' + turkeys;
+            setTimeout(() => {
+                gobble();
+                say(`${goal} feathers! Gobble gobble!`);
+                promptEl.innerHTML = `<b>${goal}</b> feathers! Gobble gobble! 🦃`;
+                // quick "count them all" sweep so he sees 1..N in order
+                for (let k = 0; k < goal; k++) {
+                    setTimeout(() => {
+                        feathers[k].classList.add('lit');
+                        tone(noteFor(k + 1), 0.08, 'sine', 0.08);
+                        setTimeout(() => feathers[k] && feathers[k].classList.remove('lit'), 260);
+                    }, 900 + k * 110);
+                }
+                const em = ['🍂', '🍁', '🦃', '🥧', '⭐', '🌽'];
+                for (let i = 0; i < 22; i++) {
+                    setTimeout(() => {
+                        const e = document.createElement('div');
+                        e.className = 'rain';
+                        e.textContent = em[Math.floor(Math.random() * em.length)];
+                        e.style.left = Math.random() * 95 + 'vw';
+                        e.style.animationDuration = (2 + Math.random() * 2) + 's';
+                        document.body.appendChild(e);
+                        setTimeout(() => e.remove(), 4200);
+                    }, i * 80);
+                }
+            }, 450);
+            setTimeout(newRound, 900 + goal * 110 + 2600);
+        }
+
+        // ---------- Input ----------
+        addBtn.addEventListener('click', addFeather);
+        turkeySvg.addEventListener('click', () => { if (mode !== 'how') addFeather(); });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowUp') { e.preventDefault(); addFeather(); }
+            // in "how many" rounds, typing the number works too (1 then 5 = 15)
+            if (mode === 'how' && !choicesEl.classList.contains('hidden') && /^[0-9]$/.test(e.key)) {
+                typed = (typed + e.key).slice(-2);
+                clearTimeout(typedTimer);
+                typedTimer = setTimeout(() => {
+                    const v = parseInt(typed, 10); typed = '';
+                    const b = [...choicesEl.children].find(x => +x.textContent === v);
+                    if (b) pickAnswer(v, b);
+                }, 700);
+            }
+        });
+        let typed = '', typedTimer = null;
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('start').classList.add('hidden');
+            gobble(); // also unlocks audio on iOS
+            setTimeout(newRound, 600);
+        });
+
+        // Menu
+        document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
+        document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
+
+        buildFrames();
+    </script>
+    <script src="games.js"></script>
+</body>
+
+</html>

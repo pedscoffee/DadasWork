@@ -14,6 +14,8 @@ My son always wants to 'help' with Dada's Work and type on the computer. I had t
 | 🌊 **Submarine** | Steer a submarine through 10 underwater mazes (plus endless random mazes) to find the treasure |
 | 🚜 **Excavator** | Drive into dirt to dig tunnels down to buried treasure, 10 levels plus endless dig mode |
 | 🎄 **Christmas Tree** | Pick decorations and tap the tree to place them. Your tree is saved for next time |
+| 🦃 **Dress the Turkey** | Count feathers up to 20. Give the turkey 17 feathers, count on from 8 to 15, or tap to count them and pick the number. A two-row "ten frame" shows 10 and some more |
+| 🚀 **Rocket Builder** | Drag shapes (circle, square, triangle, star, heart, hexagon, trapezoid and more) into the matching outlines, then count down from 10 and blast off |
 | 🚚 **Dump Truck** | Get loaded up by the digger, back up to the hole (beep beep!), and dump. Fill the hole to build a house, castle, school… |
 | 🚂 **Letter Train** | Fill each train car with the right letter to spell a word, then the train chugs away. The first word is always LOVE ❤️ |
 | 🥕 **Feed the Animals** | Drag each food to the animal who eats it (or just tap the animal). Wrong guesses get a polite "no thank you!" |
