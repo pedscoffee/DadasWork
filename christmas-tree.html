@@ -121,74 +121,41 @@
         #tree-area {
             position: relative;
             flex: 1;
+            min-height: 0;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            padding: 50px 10px 10px;
         }
 
+        /* The tree keeps its shape and scales to whatever room is left */
         #tree-container {
             position: relative;
-            width: 90%;
-            max-width: 500px;
-            height: 80%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            height: 100%;
+            max-width: 100%;
+            aspect-ratio: 400 / 520;
+            container-type: size;
         }
 
-        .tree-section {
-            position: relative;
+        #tree-svg {
+            position: absolute;
+            inset: 0;
             width: 100%;
-            display: flex;
-            justify-content: center;
-            cursor: pointer;
-        }
-
-        .tree-layer {
-            width: 0;
-            height: 0;
-            border-left: 150px solid transparent;
-            border-right: 150px solid transparent;
-            border-bottom: 180px solid #0F5F0F;
-            position: relative;
+            height: 100%;
+            overflow: visible;
             filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
         }
 
-        .tree-layer.top {
-            border-left-width: 80px;
-            border-right-width: 80px;
-            border-bottom-width: 120px;
-        }
-
-        .tree-layer.middle {
-            border-left-width: 130px;
-            border-right-width: 130px;
-            border-bottom-width: 150px;
-            margin-top: -30px;
-        }
-
-        .tree-layer.bottom {
-            border-left-width: 180px;
-            border-right-width: 180px;
-            border-bottom-width: 200px;
-            margin-top: -30px;
-        }
-
-        #tree-trunk {
-            width: 60px;
-            height: 80px;
-            background: #654321;
-            margin-top: -10px;
-            border-radius: 5px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        #tree-svg .tree-shape {
+            cursor: pointer;
         }
 
         .decoration {
             position: absolute;
-            font-size: 32px;
-            cursor: grab;
+            font-size: 8cqw;
+            line-height: 1;
+            translate: -50% -50%;
             z-index: 10;
             pointer-events: none;
             animation: decorationPop 0.3s ease;
@@ -242,10 +209,12 @@
 
         #star-topper {
             position: absolute;
-            top: -40px;
+            top: 0;
             left: 50%;
-            transform: translateX(-50%);
-            font-size: 60px;
+            translate: -50% -55%;
+            font-size: 15cqw;
+            line-height: 1;
+            pointer-events: none;
             animation: starGlow 2s ease-in-out infinite;
             filter: drop-shadow(0 0 10px #FFD700);
             z-index: 100;
@@ -264,9 +233,8 @@
         }
 
         #decoration-panel {
-            position: absolute;
-            bottom: 0;
-            left: 0;
+            position: relative;
+            flex-shrink: 0;
             width: 100%;
             background: rgba(139, 0, 0, 0.95);
             border-top: 4px solid #FFD700;
@@ -464,10 +432,32 @@
                 padding: 15px 36px;
             }
 
+            #decoration-panel {
+                padding: 8px;
+                gap: 8px;
+            }
+
+            #decoration-options {
+                display: grid;
+                grid-template-columns: repeat(6, 1fr);
+                gap: 6px;
+            }
+
             .decoration-btn {
-                min-width: 60px;
-                height: 60px;
-                font-size: 32px;
+                min-width: 0;
+                height: 52px;
+                font-size: 28px;
+                border-radius: 12px;
+            }
+
+            #instruction {
+                font-size: 14px;
+                padding: 0;
+            }
+
+            .action-btn {
+                padding: 8px 12px;
+                font-size: 14px;
             }
         }
     </style>
@@ -477,16 +467,12 @@
     <div id="game-container">
         <div id="tree-area">
             <div id="tree-container">
-                <div class="tree-section">
-                    <div class="tree-layer top" data-layer="top"></div>
-                </div>
-                <div class="tree-section">
-                    <div class="tree-layer middle" data-layer="middle"></div>
-                </div>
-                <div class="tree-section">
-                    <div class="tree-layer bottom" data-layer="bottom"></div>
-                </div>
-                <div id="tree-trunk"></div>
+                <svg id="tree-svg" viewBox="0 0 400 520" preserveAspectRatio="none">
+                    <rect x="170" y="430" width="60" height="85" rx="6" fill="#654321" class="tree-shape" />
+                    <polygon points="200,190 20,440 380,440" fill="#0F5F0F" class="tree-shape" />
+                    <polygon points="200,100 60,300 340,300" fill="#137013" class="tree-shape" />
+                    <polygon points="200,20 100,170 300,170" fill="#178017" class="tree-shape" />
+                </svg>
             </div>
         </div>
 
@@ -523,16 +509,7 @@
 
             <div id="nav-overlay" class="hidden">
                 <button id="nav-close">✕</button>
-                <div class="nav-links">
-                    <a href="index.html">🏠 Home</a>
-                    <a href="firetruck.html">🚒 Fire Truck</a>
-                    <a href="excavator.html">🚜 Excavator</a>
-                    <a href="submarine.html">🌊 Submarine</a>
-                    <a href="drive.html">🚗 Drive Game</a>
-                    <a href="racer.html">🏎️ Racer Game</a>
-                    <a href="town-racer.html">🏙️ Town Adventure</a>
-                    <a href="santa-delivery.html">🎅 Santa Delivery</a>
-                    <a href="christmas-tree.html">🎄 Tree Decorator</a>
+                <div class="nav-links"><!-- filled from games.js -->
                 </div>
             </div>
         </div>
@@ -587,7 +564,7 @@
                     snowflake.style.left = Math.random() * 100 + '%';
                     snowflake.style.fontSize = (10 + Math.random() * 20) + 'px';
                     snowflake.style.animationDuration = (5 + Math.random() * 10) + 's';
-                    snowflake.style.animationDelay = Math.random() * 5 + 's';
+                    snowflake.style.animationDelay = (-Math.random() * 15) + 's';
                     snowflake.style.setProperty('--drift', (Math.random() - 0.5) * 100 + 'px');
                     treeArea.appendChild(snowflake);
                 }, i * 100);
@@ -624,52 +601,98 @@
             });
         });
 
-        // Tree click handler
-        const treeLayers = document.querySelectorAll('.tree-layer, #tree-trunk');
+        // Tree click handler: only the green tree (and trunk) accept decorations
         const treeContainer = document.getElementById('tree-container');
+        const SAVE_KEY = 'dadaswork-christmas-tree';
 
-        treeLayers.forEach(layer => {
-            layer.addEventListener('click', (e) => {
-                if (!game.isPlaying || !game.selectedDecoration) return;
-
+        document.querySelectorAll('#tree-svg .tree-shape').forEach(shape => {
+            shape.addEventListener('pointerdown', (e) => {
+                if (!game.isPlaying) return;
+                // Little ones may tap the tree before picking: surprise them!
+                if (!game.selectedDecoration) {
+                    const btns = [...decorationBtns];
+                    btns[Math.floor(Math.random() * btns.length)].click();
+                }
                 placeDecoration(e);
             });
         });
 
         function placeDecoration(e) {
             const rect = treeContainer.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            // Store as percentages so decorations stay put when the screen rotates/resizes
+            const px = ((e.clientX - rect.left) / rect.width) * 100;
+            const py = ((e.clientY - rect.top) / rect.height) * 100;
+            addDecoration(game.selectedDecoration, px, py, true);
+            playChime();
+            createMiniCelebration(e.clientX, e.clientY);
+            saveTree();
+        }
 
+        function addDecoration(emoji, px, py, animate) {
             const decoration = document.createElement('div');
             decoration.className = 'decoration';
-            decoration.textContent = game.selectedDecoration;
-            decoration.style.left = x + 'px';
-            decoration.style.top = y + 'px';
-            decoration.style.transform = 'translate(-50%, -50%)';
-
-            // Add special classes for animations
-            if (game.selectedDecoration === '💡' || game.selectedDecoration === '✨') {
+            decoration.textContent = emoji;
+            decoration.dataset.emoji = emoji;
+            decoration.style.left = px + '%';
+            decoration.style.top = py + '%';
+            if (emoji === '💡' || emoji === '✨') {
                 decoration.classList.add('light');
-            } else if (['🔴', '🟡', '🔵', '🎀', '🔔'].includes(game.selectedDecoration)) {
+            } else if (['🔴', '🟡', '🔵', '🎀', '🔔'].includes(emoji)) {
                 decoration.classList.add('ornament');
             }
-
-            // Add click to remove
-            decoration.addEventListener('click', (e) => {
-                e.stopPropagation();
-                decoration.style.animation = 'decorationPop 0.3s ease reverse';
-                setTimeout(() => {
-                    decoration.remove();
-                    game.decorationCount--;
-                }, 300);
-            });
-
+            if (!animate) decoration.style.animationDelay = (Math.random() * -3) + 's';
             treeContainer.appendChild(decoration);
             game.decorationCount++;
+        }
 
-            // Add mini celebration
-            createMiniCelebration(x, y);
+        function addStarTopper() {
+            if (game.hasStarTopper) return;
+            const star = document.createElement('div');
+            star.id = 'star-topper';
+            star.textContent = '⭐';
+            treeContainer.appendChild(star);
+            game.hasStarTopper = true;
+        }
+
+        function saveTree() {
+            try {
+                const decs = [...treeContainer.querySelectorAll('.decoration')].map(d => ({
+                    e: d.dataset.emoji, x: parseFloat(d.style.left), y: parseFloat(d.style.top)
+                }));
+                localStorage.setItem(SAVE_KEY, JSON.stringify({ decs, star: game.hasStarTopper }));
+            } catch (err) { /* storage is optional */ }
+        }
+
+        function loadTree() {
+            try {
+                const data = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+                if (!data) return;
+                data.decs.forEach(d => addDecoration(d.e, d.x, d.y, false));
+                if (data.star) addStarTopper();
+            } catch (err) { /* ignore */ }
+        }
+
+        // Soft bell chime (Web Audio, no files needed)
+        let audioCtx = null;
+        const chimeNotes = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];
+        function playChime() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const t = audioCtx.currentTime;
+                const freq = chimeNotes[Math.floor(Math.random() * chimeNotes.length)];
+                [1, 2.01].forEach((mult, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq * mult;
+                    gain.gain.setValueAtTime(i ? 0.05 : 0.18, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+                    osc.connect(gain).connect(audioCtx.destination);
+                    osc.start(t);
+                    osc.stop(t + 0.8);
+                });
+            } catch (err) { /* sound is optional */ }
         }
 
         function createMiniCelebration(x, y) {
@@ -709,6 +732,7 @@
 
             game.decorationCount = 0;
             game.hasStarTopper = false;
+            setTimeout(saveTree, 350);
         });
 
         // Done button
@@ -716,13 +740,8 @@
             if (!game.isPlaying) return;
 
             // Add star topper if not already there
-            if (!game.hasStarTopper) {
-                const star = document.createElement('div');
-                star.id = 'star-topper';
-                star.textContent = '⭐';
-                treeContainer.querySelector('.tree-section').appendChild(star);
-                game.hasStarTopper = true;
-            }
+            addStarTopper();
+            saveTree();
 
             showCompleteScreen();
         });
@@ -760,7 +779,7 @@
         document.getElementById('start-btn').addEventListener('click', () => {
             game.isPlaying = true;
             document.getElementById('start-screen').classList.add('hidden');
-            createSnowfall();
+            if (!game.selectedDecoration) decorationBtns[0].click();
         });
 
         // Restart
@@ -773,11 +792,7 @@
 
             game.decorationCount = 0;
             game.hasStarTopper = false;
-            game.selectedDecoration = null;
-
-            decorationBtns.forEach(b => b.classList.remove('selected'));
-            document.getElementById('instruction').textContent =
-                'Select a decoration, then tap on the tree! 🎄';
+            saveTree();
 
             document.getElementById('complete-screen').classList.add('hidden');
         });
@@ -789,6 +804,7 @@
 
         // Initialize
         createSnowfall();
+        loadTree();
 
         // Menu Logic
         const navToggle = document.getElementById('nav-toggle');
@@ -804,6 +820,7 @@
             });
         }
     </script>
+    <script src="games.js"></script>
 </body>
 
 </html>

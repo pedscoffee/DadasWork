@@ -1,117 +1,48 @@
-# Welcome to Dada's Work!
+# Dada's Work 🎮
 
-An interactive typing game that teaches letters through beautiful visualizations and touch tracing. Perfect for kids learning to type and trace letters!
+A collection of small, no-install games for little kids. They run in any browser on a computer, tablet, or phone.
 
-My son always wants to 'help' with Dada's Work and type on the computer.  I had the idea of making a more fun screen for him to type on and this game was born!  He also is tracing letters at preschool so I had the idea to add that to a mobile version.  He loves it!  I hope your kids enjoy too!
+**Play now:** [pedscoffee.github.io/DadasWork](https://pedscoffee.github.io/DadasWork/)
 
-My suggestion for the online community is to use making small games for kids as a new benchmark as the models continue to improve. It is fascinating how the different models will take things different directions with very similar instructions. Really understanding the ideas behind game mechanics and what would make something fun takes a lot of nuance on top of the programming. I think this could be a useful measuring stick for the short term at least. If they all ended up getting to where we could all make games on the fly for kids just by thinking about them-well that would be a pretty cool world wouldn't it?
+My son always wants to 'help' with Dada's Work and type on the computer. I had the idea of making a more fun screen for him to type on and this game was born! He also is tracing letters at preschool so I had the idea to add that to a mobile version. He loves it! I hope your kids enjoy too!
 
-## Contributions Welcome!
+## The games
 
-If anyone wants a fun little project create a new visualization to go in the background!  Send us a PR - We'd love it!
+| Game | What you do |
+| --- | --- |
+| ⌨️ **Magic Typing** (`index.html`) | Type the letter you see (keyboard) or trace it with a finger (touch). Every letter powers one of 17 animated backgrounds. Always starts by spelling "I LOVE YOU" ❤️ |
+| 🌊 **Submarine** | Steer a submarine through 10 underwater mazes (plus endless random mazes) to find the treasure |
+| 🚜 **Excavator** | Drive into dirt to dig tunnels down to buried treasure, 10 levels plus endless dig mode |
+| 🎄 **Christmas Tree** | Pick decorations and tap the tree to place them. Your tree is saved for next time |
+| 🚒 **Fire Truck** | Race to the fire and spray it out |
+| 🚗 **Drive & Collect** | Touch-driving game for the littlest players |
+| 🏎️ **Racer** | Preschool-friendly racing |
+| 🏙️ **Town Adventure** | Drive around a playmat town: school, work, home, library |
+| 🎅 **Santa Delivery** | Fly over the snowy town and drop presents on every house |
+| ❄️ **Snowball Throw** | Knock down all the snowmen |
 
-## 🎮 What is this?
+### Magic Typing backgrounds
+Waves, Stars, Bubbles, Fire, Spiral, Pipes, Matrix, DVD, Fireworks, Worms, Ocean, Garden, Rockets, Music, Weather, Kaleidoscope, Swarm. Each one gets more lively the more your kid types.
 
-**Magic Typing** is a playful, educational typing experience that turns keyboard practice into a magical adventure. My kid always wants to "help" with Dada's work on the computer - so I built this! Now they can type away while enjoying mesmerizing animations.
+## Design rules for these games
+- **Big, forgiving controls.** Tap where you want to go; driving into something usually does the obvious thing.
+- **No losing.** Celebrate, don't punish.
+- **Works on touch and keyboard.** Test on a phone, an iPad, and a laptop.
+- **One file per game.** Plain HTML, CSS, and JavaScript with no frameworks, build step, or downloads.
 
-### Two Modes:
-- **Desktop**: Challenge mode where you type the letters shown on screen (both uppercase and lowercase!)
-- **Mobile**: Trace letters with your finger to learn letter shapes
+## Adding a game
+1. Make `your-game.html` (copy an existing game for the menu markup).
+2. Add one line to the list in **`games.js`**. Every game's menu updates automatically.
+3. Include `<script src="games.js"></script>` before `</body>`.
 
-Every keystroke or trace creates colorful particle effects and energizes one of 10 stunning visualizations!
+## A thought for the AI crowd
+My suggestion for the online community is to use making small games for kids as a new benchmark as the models continue to improve. It is fascinating how the different models will take things different directions with very similar instructions. Really understanding the ideas behind game mechanics and what would make something fun takes a lot of nuance on top of the programming. If they all ended up getting to where we could all make games on the fly for kids just by thinking about them, well, that would be a pretty cool world, wouldn't it?
 
-## 🚀 Try It Now
+## Contributions welcome
+New games, new Magic Typing backgrounds, bug fixes, and accessibility improvements are all welcome. Open an issue or send a PR.
 
-### Magic Typing
-Open `index.html` to play the typing game.
-
-### Drive & Collect (New!)
-Open `drive.html` to play the touch-based driving game for little ones.
-
-Or visit [https://thesnowcrow.github.io/DadasWork/]
-
-## 🌈 Visualization Modes
-
-1. **Waves** - Flowing ocean waves with dancing aurora lights
-2. **Stars** - Hyperspeed starfield journey through space
-3. **Bubbles** - Rising bubbles through shimmering water
-4. **Fire** - Dynamic flames that intensify with typing
-5. **Spiral** - Mesmerizing rainbow spiral patterns
-6. **Pipes** - Classic 3D pipes screensaver homage
-7. **Matrix** - Cascading code rain (because why not?)
-8. **DVD** - Nostalgic bouncing logo with color-changing impacts
-9. **Fireworks** - Spectacular explosions across the night sky
-10. **Worms** - Mystify-style flowing light trails
-11. **Ocean** - Underwater scene with fish that scatter when you type
-12. **Garden** - Growing flowers with fluttering butterflies
-13. **Rockets** - Space rockets launching with colorful trails
-14. **Music** - Bouncing musical notes with sound wave effects
-15. **Weather** - Rain, snow, and lightning that changes dynamically
-16. **Kaleidoscope** - Hypnotic geometric patterns with rotation
-17. **Swarm** - Particle swarms forming shapes (circle, spiral, heart, wave)
-
-## 🎯 Features
-
-- ✅ **Educational** - Teaches letter recognition and typing skills
-- ✅ **Touch-friendly** - Trace letters on tablets and phones
-- ✅ **Beautiful effects** - Responsive particle systems and animations
-- ✅ **Zero setup** - Single HTML file, runs anywhere
-- ✅ **Kid-tested** - Engaging enough to keep little ones entertained
-- ✅ **Starts with love** - Always begins by spelling "ILOVEYOU" ❤️
-
-## 🎨 Want to Contribute?
-
-This is a fun little project and I'd **love** contributions from the community! Here are some ways you can help:
-
-### 🌟 New Visualization Ideas
-
-Have an idea for a cool animation mode? I'm looking for creative, kid-friendly visualizations that respond to typing energy! Some ideas to inspire you:
-
-- **Underwater scene** with fish that scatter when you type
-- **Garden** that grows flowers and butterflies
-- **Space rockets** that launch and zoom around
-- **Musical notes** that bounce and create melodies
-- **Weather effects** (rain, snow, lightning storms)
-- **Geometric kaleidoscopes** with shifting patterns
-- **Particle swarms** that form shapes
-- **Your wild idea here!** 🚀
-
-### How to Contribute a New Mode
-
-1. Fork this repo
-2. Add your visualization function (search for `// MODE X:` comments to see the pattern)
-3. Add a button in the HTML for your mode
-4. Test it out - make sure it responds to the `energy` variable!
-5. Submit a PR with a description and maybe a GIF/video
-
-Don't worry about perfection - this is meant to be a fun, creative playground. All skill levels welcome!
-
-### 🐛 Other Contributions
-
-- **Bug fixes** - Found something broken? PRs welcome!
-- **Performance improvements** - Make it smoother and faster
-- **Mobile enhancements** - Better touch interactions
-- **Letter tracing improvements** - Make it easier for kids to succeed
-- **Documentation** - Help others understand the code
-- **Accessibility** - Make it work better for everyone
-
-## 💻 Technical Details
-
-- Pure vanilla JavaScript (no frameworks!)
-- HTML5 Canvas for all visualizations
-- Touch and mouse event handling
-- Particle system with dynamic effects
-- Letter tracing with coverage detection
-- Responsive design for all screen sizes
-
-## 📝 License
-
-MIT - Feel free to use, modify, and share! If you make something cool, let me know - I'd love to see it!
-
-## 🙏 Acknowledgments
-
-Built with love for curious kids who want to help with "Dada's Work" 💖
+## License
+MIT. Feel free to use, modify, and share!
 
 ---
-
-**Questions? Ideas? Just want to chat about creative coding?** Open an issue or discussion - I'd be happy to hear from you!
+Built with love for curious kids who want to help with "Dada's Work" 💖

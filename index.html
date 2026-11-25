@@ -95,13 +95,17 @@
             z-index: 20;
             display: flex;
             gap: 3px;
-            justify-content: center;
+            justify-content: flex-start;
             padding: 0 5px;
             flex-wrap: nowrap;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
         }
+
+        /* Center when there's room, but never clip the first buttons when scrolling */
+        #mode-buttons > :first-child { margin-left: auto; }
+        #mode-buttons > :last-child { margin-right: auto; }
 
         #mode-buttons::-webkit-scrollbar {
             display: none;
@@ -221,11 +225,12 @@
             left: 50%;
             transform: translate(-50%, -60%);
             font-size: 50vw;
+            line-height: 1;
             font-weight: bold;
-            color: transparent;
+            color: rgba(255, 255, 255, 0.07);
             /* Default non-active state */
-            -webkit-text-stroke: 3px rgba(255, 255, 255, 0.25);
-            text-stroke: 3px rgba(255, 255, 255, 0.25);
+            -webkit-text-stroke: 3px rgba(255, 255, 255, 0.4);
+            text-stroke: 3px rgba(255, 255, 255, 0.4);
             pointer-events: none;
             font-family: Arial, sans-serif;
             transition: all 0.1s ease-in-out;
@@ -284,7 +289,7 @@
 
             #trace-letter {
                 font-size: 40vw;
-                -webkit-text-stroke: 4px rgba(255, 255, 255, 0.25);
+                -webkit-text-stroke: 4px rgba(255, 255, 255, 0.4);
             }
 
             #trace-letter.flash {
@@ -333,38 +338,7 @@
             <span id="menu-text">Games</span>
         </button>
         <div id="game-menu-dropdown" class="hidden">
-            <a href="index.html" class="menu-item">
-                <span class="menu-emoji">⌨️</span>
-                <span class="menu-label">Magic Typing</span>
-            </a>
-            <a href="drive.html" class="menu-item">
-                <span class="menu-emoji">🚗</span>
-                <span class="menu-label">Drive Game</span>
-            </a>
-            <a href="racer.html" class="menu-item">
-                <span class="menu-emoji">🏁</span>
-                <span class="menu-label">Racer</span>
-            </a>
-            <a href="town-racer.html" class="menu-item">
-                <span class="menu-emoji">🌆</span>
-                <span class="menu-label">Town Racer</span>
-            </a>
-            <a href="submarine.html" class="menu-item">
-                <span class="menu-emoji">🌊</span>
-                <span class="menu-label">Submarine</span>
-            </a>
-            <a href="excavator.html" class="menu-item">
-                <span class="menu-emoji">🚜</span>
-                <span class="menu-label">Excavator</span>
-            </a>
-            <a href="firetruck.html" class="menu-item">
-                <span class="menu-emoji">🚒</span>
-                <span class="menu-label">Fire Truck</span>
-            </a>
-            <a href="snowball-throw.html" class="menu-item">
-                <span class="menu-emoji">❄️</span>
-                <span class="menu-label">Snowball Throw</span>
-            </a>
+            <!-- filled from games.js -->
         </div>
     </div>
 
@@ -373,24 +347,6 @@
         <button id="reset-btn" class="action-btn" style="display: none;">Reset</button>
         <button id="free-text-toggle" class="action-btn" style="display: none;">Free Type</button>
         <button id="keyboard-toggle" class="action-btn" style="display: none;">Keyboard</button>
-        <a href="drive.html" class="action-btn" style="text-decoration: none; background: rgba(255, 165, 0, 0.3);">🚗
-            Drive Game</a>
-        <a href="racer.html" class="action-btn" style="text-decoration: none; background: rgba(255, 0, 100, 0.3);">🏎️
-            Racer Game</a>
-        <a href="town-racer.html" class="action-btn"
-            style="text-decoration: none; background: rgba(100, 200, 100, 0.3);">🏙️
-            Town Adventure</a>
-        <a href="santa-delivery.html" class="action-btn"
-            style="text-decoration: none; background: rgba(200, 0, 0, 0.3);">🎅
-            Santa Delivery</a>
-        <a href="christmas-tree.html" class="action-btn"
-            style="text-decoration: none; background: rgba(0, 150, 0, 0.3);">🎄
-            Tree Decorator</a>
-        <a href="firetruck.html" class="action-btn" style="text-decoration: none; background: rgba(255, 69, 0, 0.3);">🚒
-            Fire Truck</a>
-        <a href="snowball-throw.html" class="action-btn"
-            style="text-decoration: none; background: rgba(135, 206, 235, 0.3);">❄️
-            Snowball Throw</a>
     </div>
 
     <div id="text-display">
@@ -441,10 +397,13 @@
         let currentTraceLetter = 'A'; // The target letter to trace or type
 
         // Expanded to include both cases and numbers
-        const traceLetters = 'AaBbCcDdEeFfGfHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz0123456789'.split('');
+        const traceLetters = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz0123456789'.split('');
         let shuffledLetters = [];
         let letterIndex = 0;
         let totalLetterPixels = 0; // Number of pixels in the target letter
+        let letterDone = false; // guards against counting one letter twice
+        let traceBrush = 20; // brush width scales with letter size
+        const TRACE_GOAL = 0.65; // fraction of the letter that must be covered
 
         // --- Core Game Logic ---
 
@@ -477,18 +436,23 @@
             // Clear hit canvas
             hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
 
-            // Draw the target letter (always uppercase for analysis mask) onto hitCanvas
-            const fontSize = (window.innerWidth >= 700 ? 40 : 50) * (width / 100);
-            hitCtx.font = `bold ${fontSize * SCALE_FACTOR}px Arial, sans-serif`;
+            // Build the mask from where the visible guide letter ACTUALLY is on screen,
+            // so tracing the outline you see is what counts.
+            const rect = traceLetter.getBoundingClientRect();
+            const fontSize = parseFloat(getComputedStyle(traceLetter).fontSize);
+            hitCtx.setTransform(SCALE_FACTOR, 0, 0, SCALE_FACTOR, 0, 0);
+            hitCtx.font = `bold ${fontSize}px Arial, sans-serif`;
             hitCtx.fillStyle = 'red';
             hitCtx.textAlign = 'center';
-            hitCtx.textBaseline = 'middle';
-
-            const x = hitCanvas.width / 2;
-            const y = hitCanvas.height * 0.45;
-
-            // Use the actual letter (preserving case) for the tracing shape
-            hitCtx.fillText(currentTraceLetter, x, y);
+            hitCtx.textBaseline = 'alphabetic';
+            const m = hitCtx.measureText(currentTraceLetter);
+            const ascent = m.fontBoundingBoxAscent || fontSize * 0.905;
+            const descent = m.fontBoundingBoxDescent || fontSize * 0.212;
+            // #trace-letter uses line-height: 1, so the baseline sits at top + half-leading + ascent
+            const baseline = rect.top + (rect.height - (ascent + descent)) / 2 + ascent;
+            hitCtx.fillText(currentTraceLetter, rect.left + rect.width / 2, baseline);
+            hitCtx.setTransform(1, 0, 0, 1, 0, 0);
+            traceBrush = Math.max(18, fontSize * 0.1);
 
             // Count target pixels
             const imgData = hitCtx.getImageData(0, 0, hitCanvas.width, hitCanvas.height);
@@ -537,6 +501,7 @@
         }
 
         function showNextTraceLetter() {
+            letterDone = false;
             currentTraceLetter = getNextLetter();
             traceLetter.textContent = currentTraceLetter;
 
@@ -611,7 +576,8 @@
 
                 if (isChallengeMode) {
                     // Challenge Mode: Check for correct key match
-                    if (e.key.toUpperCase() === currentTraceLetter.toUpperCase()) {
+                    if (!letterDone && e.key.toUpperCase() === currentTraceLetter.toUpperCase()) {
+                        letterDone = true;
                         e.preventDefault(); // Stop the character from being processed by normal input
 
                         flashLetter();
@@ -1859,7 +1825,8 @@
             prepareTraceAnalysis();
             initStars(); initBubbles(); initPipes(); initMatrix(); initDVD(); initWorms();
             initOcean(); initGarden(); initRockets(); initMusic(); initWeather(); initSwarm();
-            showNextTraceLetter(); // Recalculate letter position
+            // Keep the same letter (rotation / keyboard / address bar shouldn't skip it)
+            if (isMobile || isChallengeMode) requestAnimationFrame(prepareTraceAnalysis);
         }
 
         function animate() {
@@ -1883,8 +1850,8 @@
         function handleTraceMove(x, y) {
             if (!isTracing || !isMobile) return;
             targetEnergy = Math.min(1, targetEnergy + 0.02); hueBase = (hueBase + 2) % 360;
-            traceCtx.beginPath(); traceCtx.strokeStyle = `hsla(${hueBase}, 100%, 60%, 0.8)`; traceCtx.lineWidth = 20; traceCtx.lineCap = 'round'; traceCtx.moveTo(lastTraceX, lastTraceY); traceCtx.lineTo(x, y); traceCtx.stroke();
-            traceCtx.beginPath(); traceCtx.strokeStyle = `hsla(${hueBase}, 100%, 70%, 0.3)`; traceCtx.lineWidth = 35; traceCtx.moveTo(lastTraceX, lastTraceY); traceCtx.lineTo(x, y); traceCtx.stroke();
+            traceCtx.beginPath(); traceCtx.strokeStyle = `hsla(${hueBase}, 100%, 60%, 0.8)`; traceCtx.lineWidth = traceBrush; traceCtx.lineCap = 'round'; traceCtx.moveTo(lastTraceX, lastTraceY); traceCtx.lineTo(x, y); traceCtx.stroke();
+            traceCtx.beginPath(); traceCtx.strokeStyle = `hsla(${hueBase}, 100%, 70%, 0.3)`; traceCtx.lineWidth = traceBrush * 1.6; traceCtx.moveTo(lastTraceX, lastTraceY); traceCtx.lineTo(x, y); traceCtx.stroke();
             if (Math.random() < 0.3) particles.push(new Particle(x, y, hueBase, { size: Math.random() * 15 + 5, speedX: (Math.random() - 0.5) * 4, speedY: (Math.random() - 0.5) * 4, gravity: 0.02 }));
             lastTraceX = x; lastTraceY = y;
         }
@@ -1894,7 +1861,8 @@
 
                 // Check coverage on lift
                 const coverage = checkTraceProgress();
-                if (coverage >= 0.8) {
+                if (!letterDone && coverage >= TRACE_GOAL) {
+                    letterDone = true;
                     // Use the displayed character for the typed text
                     updateText(currentTraceLetter);
                     flashLetter();
@@ -1917,6 +1885,7 @@
         // This is only for the mobile virtual keyboard fallback
         document.addEventListener('keydown', (e) => {
             if (!isMobile) return;
+            if (e.target === mobileInput) return; // the input's own 'input' event handles it
             // Desktop handler is active for non-mobile devices
             if (e.key === ' ') e.preventDefault();
             if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta') return;
@@ -1955,11 +1924,13 @@
         window.addEventListener('resize', resize);
         // Initial setup calls
         shuffleLetters();
-        resize();
         detectMobile();
+        resize();
+        if (isMobile) showNextTraceLetter();
         setMode(1);
         animate();
     </script>
+    <script src="games.js"></script>
 </body>
 
 </html>

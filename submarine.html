@@ -470,38 +470,6 @@
     <!-- Background bubbles -->
     <div id="bubbles"></div>
 
-    <!-- Old menu removed -->
-    <script>
-        (function () {
-            const toggle = document.getElementById('game-menu-toggle');
-            const menu = document.getElementById('game-menu-list');
-            let isOpen = false;
-            toggle.addEventListener('click', function (e) {
-                e.stopPropagation();
-                isOpen = !isOpen;
-                if (isOpen) {
-                    menu.style.opacity = '1';
-                    menu.style.transform = 'scale(1) translateY(0)';
-                    menu.style.pointerEvents = 'auto';
-                    toggle.style.background = 'rgba(100, 100, 255, 0.6)';
-                } else {
-                    menu.style.opacity = '0';
-                    menu.style.transform = 'scale(0.8) translateY(10px)';
-                    menu.style.pointerEvents = 'none';
-                    toggle.style.background = 'rgba(100, 100, 255, 0.4)';
-                }
-            });
-            document.addEventListener('click', function () {
-                if (isOpen) {
-                    isOpen = false;
-                    menu.style.opacity = '0';
-                    menu.style.transform = 'scale(0.8) translateY(10px)';
-                    menu.style.pointerEvents = 'none';
-                    toggle.style.background = 'rgba(100, 100, 255, 0.4)';
-                }
-            });
-        })();
-    </script>
 
     <!-- Menu Screen -->
     <div id="menu">
@@ -516,8 +484,8 @@
             🎲 Free Play Mode
         </button>
 
-        <p class="instructions desktop-only">Use Arrow Keys to move your submarine</p>
-        <p class="instructions mobile-only">Touch screen to control your submarine</p>
+        <p class="instructions desktop-only">Arrow keys or click the water to steer</p>
+        <p class="instructions mobile-only">Touch the water to steer your submarine</p>
     </div>
 
     <!-- Game Container with new Menu -->
@@ -526,7 +494,7 @@
             <!-- Replaced Back Button with Hamburger below -->
             <div class="hud-item" style="color: #FFD700; background: transparent; border: none; padding-left: 60px;">
                 LEVEL <span id="levelDisplay">1</span></div>
-            <div class="hud-item left">TREASURE: <span id="treasureDisplay">0/3</span></div>
+            <div class="hud-item left">TREASURE: <span id="treasureDisplay">0/1</span></div>
         </div>
 
         <!-- Hamburger Menu -->
@@ -536,16 +504,7 @@
 
         <div id="nav-overlay" class="hidden">
             <button id="nav-close">✕</button>
-            <div class="nav-links">
-                <a href="index.html">🏠 Home</a>
-                <a href="firetruck.html">🚒 Fire Truck</a>
-                <a href="excavator.html">🚜 Excavator</a>
-                <a href="submarine.html">🌊 Submarine</a>
-                <a href="drive.html">🚗 Drive Game</a>
-                <a href="racer.html">🏎️ Racer Game</a>
-                <a href="town-racer.html">🏙️ Town Adventure</a>
-                <a href="santa-delivery.html">🎅 Santa Delivery</a>
-                <a href="christmas-tree.html">🎄 Tree Decorator</a>
+            <div class="nav-links"><!-- filled from games.js -->
             </div>
         </div>
 
@@ -591,7 +550,7 @@
         let player = {
             x: 1,
             y: 1,
-            size: 0.8,
+            size: 0.7,
             angle: 0,
             velocityX: 0,
             velocityY: 0
@@ -602,6 +561,8 @@
         let touchActive = false;
         let joystickAngle = 0;
         let joystickPower = 0;
+        let pointerTarget = null;   // tap/drag-to-steer target in grid units
+        let lastFrameTime = 0;
 
         // Level definitions - 10 handcrafted levels
         const levels = [
@@ -748,7 +709,7 @@
                     "#.#########.#.#.#.#.#",
                     "#.#.........#...#.#.#",
                     "#.#.###########.#.#.#",
-                    "#...#...........#.#T#",
+                    "#...#.............#T#",
                     "#####################"
                 ]
             },
@@ -761,7 +722,7 @@
                     "#######################",
                     "#P..#.#...#...#.#.....#",
                     "#.#.#.#.#.#.#.#.#.###.#",
-                    "#.#.#.#.#.#.#.#.#.#.#.#",
+                    "#.#.#.#.#.#.#.#.#...#.#",
                     "#.#.#.#.#.#.#.#.#.#.#.#",
                     "#.#.#.#.#.#.#.#.#.#.#.#",
                     "#.#...#.#...#.#...#.#.#",
@@ -930,6 +891,26 @@
             joystickContainer.addEventListener('touchmove', handleTouch);
             joystickContainer.addEventListener('touchend', endTouch);
 
+            // Tap or drag on the sea to steer
+            let pointerHeld = false;
+            function setPointerTarget(e) {
+                const rect = canvas.getBoundingClientRect();
+                const cx = (e.clientX - rect.left) * (CANVAS_WIDTH / rect.width);
+                const cy = (e.clientY - rect.top) * (CANVAS_HEIGHT / rect.height);
+                pointerTarget = { x: (cx - window.offsetX) / window.cellSize, y: (cy - window.offsetY) / window.cellSize };
+            }
+            canvas.addEventListener('pointerdown', (e) => {
+                if (!gameActive) return;
+                pointerHeld = true;
+                canvas.setPointerCapture(e.pointerId);
+                setPointerTarget(e);
+                e.preventDefault();
+            });
+            canvas.addEventListener('pointermove', (e) => { if (pointerHeld) setPointerTarget(e); });
+            const release = () => { pointerHeld = false; pointerTarget = null; };
+            canvas.addEventListener('pointerup', release);
+            canvas.addEventListener('pointercancel', release);
+
             // Window resize
             window.addEventListener('resize', setupCanvas);
         }
@@ -946,7 +927,7 @@
         function startLevel(levelIndex) {
             currentLevel = levelIndex;
             isFreePlay = false;
-            document.getElementById('levelDisplay').textContent = levels[levelIndex].name;
+            document.getElementById('levelDisplay').textContent = (levelIndex + 1) + ': ' + levels[levelIndex].name;
             startGame();
         }
 
@@ -1037,6 +1018,9 @@
             player.velocityX = 0;
             player.velocityY = 0;
             player.angle = 0;
+            pointerTarget = null;
+            lastFrameTime = 0;
+            document.getElementById('treasureDisplay').textContent = '0/1';
 
             // Store level data
             window.currentLevelData = level;
@@ -1065,16 +1049,20 @@
         function gameLoop(timestamp) {
             if (!gameActive) return;
 
-            update();
+            // Frame-rate independent: 1.0 at 60fps, 0.5 at 120fps
+            const dt = lastFrameTime ? Math.min((timestamp - lastFrameTime) / 16.67, 3) : 1;
+            lastFrameTime = timestamp;
+            update(dt);
             render();
 
             requestAnimationFrame(gameLoop);
         }
 
         // Update game state
-        function update() {
-            const speed = 0.08;
-            const friction = 0.85;
+        function update(dt = 1) {
+            const speed = 0.08 * dt;
+            const friction = Math.pow(0.85, dt);
+            let steerX = 0, steerY = 0;
 
             // Handle keyboard input
             if (keys['ArrowUp'] || keys['w'] || keys['W']) {
@@ -1096,12 +1084,35 @@
                 player.velocityY += Math.sin(joystickAngle) * speed * joystickPower;
             }
 
+            // Tap / drag on the sea: swim toward the finger
+            if (pointerTarget) {
+                const ddx = pointerTarget.x - player.x;
+                const ddy = pointerTarget.y - player.y;
+                const d = Math.hypot(ddx, ddy);
+                if (d > 0.3) {
+                    player.velocityX += (ddx / d) * speed;
+                    player.velocityY += (ddy / d) * speed;
+                }
+            }
+
+            // Corner assist: gently center the sub in the corridor on the
+            // axis it is NOT trying to move along, so turns don't snag.
+            const wantX = Math.abs(player.velocityX), wantY = Math.abs(player.velocityY);
+            const assist = 0.12 * dt;
+            if (wantX > wantY * 1.5) {
+                const cy = Math.floor(player.y) + 0.5;
+                if (!checkCollision(player.x, player.y + (cy - player.y) * assist)) player.y += (cy - player.y) * assist;
+            } else if (wantY > wantX * 1.5) {
+                const cx = Math.floor(player.x) + 0.5;
+                if (!checkCollision(player.x + (cx - player.x) * assist, player.y)) player.x += (cx - player.x) * assist;
+            }
+
             // Apply friction
             player.velocityX *= friction;
             player.velocityY *= friction;
 
             // Limit speed
-            const maxSpeed = 0.15;
+            const maxSpeed = 0.15 * dt;
             const currentSpeed = Math.sqrt(player.velocityX ** 2 + player.velocityY ** 2);
             if (currentSpeed > maxSpeed) {
                 player.velocityX = (player.velocityX / currentSpeed) * maxSpeed;
@@ -1308,6 +1319,7 @@
         // Victory!
         function victory() {
             gameActive = false;
+            document.getElementById('treasureDisplay').textContent = '1/1';
 
             // Create emoji rain
             const emojis = ['🎉', '✨', '🏆', '⭐', '💎', '🌟', '🎊', '🥳'];
@@ -1381,6 +1393,7 @@
             });
         }
     </script>
+    <script src="games.js"></script>
 </body>
 
 </html>

@@ -533,88 +533,6 @@
     <div id="clouds"></div>
     <div id="dust"></div>
 
-    <!-- Floating Game Menu -->
-    <div style="position: fixed; bottom: 10px; left: 10px; z-index: 100;">
-        <button id="game-menu-toggle"
-            style="background: rgba(100, 100, 255, 0.4); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 12px; padding: 10px 14px; color: white; font-size: 12px; cursor: pointer; font-family: 'Segoe UI', sans-serif; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);">
-            <span style="font-size: 18px;">🎮</span>
-            <span>Games</span>
-        </button>
-        <div id="game-menu-list"
-            style="position: absolute; bottom: 100%; left: 0; margin-bottom: 10px; background: rgba(30, 30, 40, 0.95); border-radius: 15px; padding: 8px; min-width: 180px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); opacity: 0; transform: scale(0.8) translateY(10px); pointer-events: none; transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);">
-            <a href="index.html"
-                style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-decoration: none; color: white; border-radius: 10px; transition: all 0.2s ease; font-size: 13px; margin: 2px 0;"
-                onmouseover="this.style.background='rgba(255,255,255,0.15)'"
-                onmouseout="this.style.background='transparent'">
-                <span style="font-size: 20px; width: 24px; text-align: center;">⌨️</span>
-                <span style="flex: 1; font-weight: 500;">Magic Typing</span>
-            </a>
-            <a href="drive.html"
-                style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-decoration: none; color: white; border-radius: 10px; transition: all 0.2s ease; font-size: 13px; margin: 2px 0;"
-                onmouseover="this.style.background='rgba(255,255,255,0.15)'"
-                onmouseout="this.style.background='transparent'">
-                <span style="font-size: 20px; width: 24px; text-align: center;">🚗</span>
-                <span style="flex: 1; font-weight: 500;">Drive Game</span>
-            </a>
-            <a href="racer.html"
-                style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-decoration: none; color: white; border-radius: 10px; transition: all 0.2s ease; font-size: 13px; margin: 2px 0;"
-                onmouseover="this.style.background='rgba(255,255,255,0.15)'"
-                onmouseout="this.style.background='transparent'">
-                <span style="font-size: 20px; width: 24px; text-align: center;">🏁</span>
-                <span style="flex: 1; font-weight: 500;">Racer</span>
-            </a>
-            <a href="town-racer.html"
-                style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-decoration: none; color: white; border-radius: 10px; transition: all 0.2s ease; font-size: 13px; margin: 2px 0;"
-                onmouseover="this.style.background='rgba(255,255,255,0.15)'"
-                onmouseout="this.style.background='transparent'">
-                <span style="font-size: 20px; width: 24px; text-align: center;">🌆</span>
-                <span style="flex: 1; font-weight: 500;">Town Racer</span>
-            </a>
-            <a href="submarine.html"
-                style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-decoration: none; color: white; border-radius: 10px; transition: all 0.2s ease; font-size: 13px; margin: 2px 0;"
-                onmouseover="this.style.background='rgba(255,255,255,0.15)'"
-                onmouseout="this.style.background='transparent'">
-                <span style="font-size: 20px; width: 24px; text-align: center;">🌊</span>
-                <span style="flex: 1; font-weight: 500;">Submarine</span>
-            </a>
-            <a href="excavator.html"
-                style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-decoration: none; color: rgba(255,255,255,0.6); border-radius: 10px; font-size: 13px; margin: 2px 0; pointer-events: none;">
-                <span style="font-size: 20px; width: 24px; text-align: center;">🚜</span>
-                <span style="flex: 1; font-weight: 500;">Excavator ✓</span>
-            </a>
-        </div>
-    </div>
-    <script>
-        (function () {
-            const toggle = document.getElementById('game-menu-toggle');
-            const menu = document.getElementById('game-menu-list');
-            let isOpen = false;
-            toggle.addEventListener('click', function (e) {
-                e.stopPropagation();
-                isOpen = !isOpen;
-                if (isOpen) {
-                    menu.style.opacity = '1';
-                    menu.style.transform = 'scale(1) translateY(0)';
-                    menu.style.pointerEvents = 'auto';
-                    toggle.style.background = 'rgba(100, 100, 255, 0.6)';
-                } else {
-                    menu.style.opacity = '0';
-                    menu.style.transform = 'scale(0.8) translateY(10px)';
-                    menu.style.pointerEvents = 'none';
-                    toggle.style.background = 'rgba(100, 100, 255, 0.4)';
-                }
-            });
-            document.addEventListener('click', function () {
-                if (isOpen) {
-                    isOpen = false;
-                    menu.style.opacity = '0';
-                    menu.style.transform = 'scale(0.8) translateY(10px)';
-                    menu.style.pointerEvents = 'none';
-                    toggle.style.background = 'rgba(100, 100, 255, 0.4)';
-                }
-            });
-        })();
-    </script>
 
     <!-- Menu Screen -->
     <div id="menu">
@@ -629,8 +547,8 @@
             ⛏️ Endless Dig Mode
         </button>
 
-        <p class="instructions desktop-only">Arrow Keys to move • Space to dig</p>
-        <p class="instructions mobile-only">Touch to move • Tap button to dig</p>
+        <p class="instructions desktop-only">Arrow keys or click to drive • Drive into dirt to dig!</p>
+        <p class="instructions mobile-only">Tap where you want to go • Drive into dirt to dig!</p>
     </div>
 
     <!-- Game Container -->
@@ -639,7 +557,7 @@
             <!-- Replaced Back Button with Hamburger below -->
             <div class="hud-item" style="color: #FFD700; background: transparent; border: none; padding-left: 60px;">
                 LEVEL <span id="levelDisplay">1</span></div>
-            <div class="hud-item left">TREASURE: <span id="treasureDisplay">0/3</span></div>
+            <div class="hud-item left">TREASURE: <span id="treasureDisplay">0/1</span></div>
         </div>
 
         <!-- Hamburger Menu -->
@@ -649,16 +567,7 @@
 
         <div id="nav-overlay" class="hidden">
             <button id="nav-close">✕</button>
-            <div class="nav-links">
-                <a href="index.html">🏠 Home</a>
-                <a href="firetruck.html">🚒 Fire Truck</a>
-                <a href="excavator.html">🚜 Excavator</a>
-                <a href="submarine.html">🌊 Submarine</a>
-                <a href="drive.html">🚗 Drive Game</a>
-                <a href="racer.html">🏎️ Racer Game</a>
-                <a href="town-racer.html">🏙️ Town Adventure</a>
-                <a href="santa-delivery.html">🎅 Santa Delivery</a>
-                <a href="christmas-tree.html">🎄 Tree Decorator</a>
+            <div class="nav-links"><!-- filled from games.js -->
             </div>
         </div>
 
@@ -723,6 +632,8 @@
         let joystickPower = 0;
         let lastMoveTime = 0;
         let digPressed = false;
+        let pointerTarget = null;
+        let pointerHeld = false;
 
         // Grid state
         let grid = [];
@@ -1064,6 +975,30 @@
                 tryDig();
             });
 
+            // Tap or drag on the play area to steer
+            function setPointerTarget(e) {
+                const rect = canvas.getBoundingClientRect();
+                const cx = (e.clientX - rect.left) * (CANVAS_WIDTH / rect.width);
+                const cy = (e.clientY - rect.top) * (CANVAS_HEIGHT / rect.height);
+                pointerTarget = {
+                    x: Math.floor((cx - window.offsetX) / window.cellSize),
+                    y: Math.floor((cy - window.offsetY) / window.cellSize)
+                };
+            }
+            canvas.addEventListener('pointerdown', (e) => {
+                if (!gameActive) return;
+                pointerHeld = true;
+                canvas.setPointerCapture(e.pointerId);
+                setPointerTarget(e);
+                e.preventDefault();
+            });
+            canvas.addEventListener('pointermove', (e) => {
+                if (pointerHeld) setPointerTarget(e);
+            });
+            const releasePointer = () => { pointerHeld = false; };
+            canvas.addEventListener('pointerup', releasePointer);
+            canvas.addEventListener('pointercancel', releasePointer);
+
             // Window resize
             window.addEventListener('resize', setupCanvas);
         }
@@ -1080,7 +1015,7 @@
         function startLevel(levelIndex) {
             currentLevel = levelIndex;
             isFreePlay = false;
-            document.getElementById('levelDisplay').textContent = levels[levelIndex].name;
+            document.getElementById('levelDisplay').textContent = (levelIndex + 1) + ': ' + levels[levelIndex].name;
             startGame();
         }
 
@@ -1173,6 +1108,9 @@
             player.moving = false;
             player.facing = 0;
             player.digAnimProgress = 0;
+            pointerTarget = null;
+            pointerHeld = false;
+            document.getElementById('treasureDisplay').textContent = '0/1';
 
             // Store level
             window.currentLevelData = level;
@@ -1207,7 +1145,7 @@
         // Update
         function update(timestamp) {
             // Handle input for movement
-            if (!player.moving && timestamp - lastMoveTime > 150) {
+            if (!player.moving && timestamp - lastMoveTime > 120) {
                 let dx = 0, dy = 0;
 
                 // Keyboard
@@ -1217,6 +1155,19 @@
                 else if (keys['ArrowUp'] || keys['w'] || keys['W']) dy = -1;
 
                 // Touch
+                // Tap / drag on the play area: drive toward the finger
+                if (pointerTarget && !(touchActive && joystickPower > 0.3)) {
+                    const ddx = pointerTarget.x - player.gridX;
+                    const ddy = pointerTarget.y - player.gridY;
+                    if (Math.abs(ddx) < 0.5 && Math.abs(ddy) < 0.5) {
+                        if (!pointerHeld) pointerTarget = null;
+                    } else if (Math.abs(ddx) > Math.abs(ddy)) {
+                        dx = ddx > 0 ? 1 : -1;
+                    } else {
+                        dy = ddy > 0 ? 1 : -1;
+                    }
+                }
+
                 if (touchActive && joystickPower > 0.3) {
                     const angle = joystickAngle;
                     if (Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle))) {
@@ -1234,7 +1185,7 @@
 
             // Animate movement
             if (player.moving) {
-                const speed = 0.15;
+                const speed = 0.3;
                 const diffX = player.targetX - player.x;
                 const diffY = player.targetY - player.y;
 
@@ -1245,7 +1196,7 @@
                     player.x = player.targetX;
                     player.y = player.targetY;
                     player.gridX = player.targetX;
-                    player.gridY = player.gridY;
+                    player.gridY = player.targetY;
                     player.moving = false;
 
                     // Check treasure
@@ -1278,6 +1229,15 @@
             else if (dy > 0) player.facing = 1;
             else if (dx < 0) player.facing = 2;
             else if (dy < 0) player.facing = 3;
+
+            // Driving into dirt digs it out automatically (easier for little hands)
+            if (cell.type === 'D') {
+                cell.type = '.';
+                player.digAnimProgress = 1;
+                digCount++;
+                createDust(newX, newY);
+                playDig();
+            }
 
             // Can only move to empty or treasure
             if (cell.type === '.' || cell.type === 'T') {
@@ -1315,7 +1275,28 @@
 
                 // Create dust effect
                 createDust(digX, digY);
+                playDig();
             }
+        }
+
+        // Simple dig "thunk" sound (no audio files needed)
+        let audioCtx = null;
+        function playDig() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const t = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(180, t);
+                osc.frequency.exponentialRampToValueAtTime(60, t + 0.15);
+                gain.gain.setValueAtTime(0.3, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+                osc.connect(gain).connect(audioCtx.destination);
+                osc.start(t);
+                osc.stop(t + 0.2);
+            } catch (e) { /* sound is optional */ }
         }
 
         // Create dust particles
@@ -1380,9 +1361,12 @@
                         // Dirt texture
                         ctx.fillStyle = 'rgba(101, 67, 33, 0.3)';
                         for (let i = 0; i < 3; i++) {
+                            // Deterministic speckles so the dirt doesn't flicker every frame
+                            const h1 = Math.abs(Math.sin((x * 12.9898 + y * 78.233 + i * 37.7) * 43758.5453)) % 1;
+                            const h2 = Math.abs(Math.sin((x * 93.989 + y * 67.345 + i * 11.3) * 24634.6345)) % 1;
                             ctx.fillRect(
-                                screenX + Math.random() * window.cellSize,
-                                screenY + Math.random() * window.cellSize,
+                                screenX + h1 * window.cellSize * 0.8,
+                                screenY + h2 * window.cellSize * 0.8,
                                 window.cellSize * 0.2,
                                 window.cellSize * 0.2
                             );
@@ -1504,6 +1488,7 @@
         // Victory
         function victory() {
             gameActive = false;
+            document.getElementById('treasureDisplay').textContent = '1/1';
 
             // Emoji rain
             const emojis = ['💎', '💰', '🏆', '⚡', '✨', '🌟', '💎', '🎉', '🎊'];
@@ -1576,6 +1561,7 @@
             });
         }
     </script>
+    <script src="games.js"></script>
 </body>
 
 </html>
