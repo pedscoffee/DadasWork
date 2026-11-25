@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>🛁 Bubble Pop Letters</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+        html, body { width: 100%; height: 100%; overflow: hidden; touch-action: none; position: fixed; font-family: 'Arial Rounded MT Bold', 'Chalkboard SE', 'Comic Sans MS', sans-serif; background: #bfe9ff; }
+        canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+        /* Shared game menu (list filled by games.js) */
+        #game-nav { position: fixed; top: 12px; left: 12px; z-index: 2000; }
+        #nav-toggle { background: rgba(0, 0, 0, 0.45); border: 2px solid rgba(255, 255, 255, 0.6); color: #fff; font-size: 24px; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; }
+        #nav-overlay { position: fixed; inset: 0; background: rgba(10, 10, 30, 0.95); z-index: 2001; display: flex; align-items: center; justify-content: center; transition: opacity .3s; }
+        #nav-overlay.hidden { opacity: 0; pointer-events: none; }
+        #nav-close { position: absolute; top: 24px; right: 24px; background: none; border: none; color: #fff; font-size: 40px; cursor: pointer; }
+        .nav-links { display: flex; flex-direction: column; gap: 12px; text-align: center; max-height: 85vh; overflow-y: auto; padding: 10px; }
+        .nav-links a { color: #fff; text-decoration: none; font-size: 22px; padding: 10px 30px; border-radius: 30px; background: rgba(255, 255, 255, 0.1); }
+
+        #hud { position: fixed; top: 12px; left: 0; right: 0; padding: 0 10px 0 70px; display: flex; justify-content: center; pointer-events: none; z-index: 10; }
+        #goal { background: rgba(255, 255, 255, 0.85); border: 4px solid #4fb3ff; border-radius: 30px; padding: 6px 22px; display: flex; align-items: center; gap: 14px; box-shadow: 0 6px 18px rgba(0, 80, 160, 0.25); }
+        #goal-text { font-size: clamp(20px, 4.5vw, 34px); color: #1c5d99; font-weight: bold; }
+        #goal-letter { font-size: clamp(40px, 9vw, 72px); color: #ff4f9a; font-weight: bold; line-height: 1; }
+        #dots { display: flex; gap: 6px; }
+        .dot { width: clamp(12px, 2.6vw, 20px); height: clamp(12px, 2.6vw, 20px); border-radius: 50%; border: 3px solid #4fb3ff; background: #fff; transition: background .2s, transform .2s; }
+        .dot.on { background: #ffd23f; border-color: #ff9f1c; transform: scale(1.2); }
+
+        .screen { position: fixed; inset: 0; z-index: 1500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(191, 233, 255, 0.92); text-align: center; padding: 20px; }
+        .screen.hidden { display: none; }
+        .screen h1 { font-size: clamp(36px, 8vw, 72px); color: #1c5d99; text-shadow: 0 4px 0 #fff; }
+        .screen p { font-size: clamp(18px, 3.5vw, 26px); color: #1c5d99; }
+        .big-btn { font: inherit; font-size: clamp(24px, 5vw, 36px); padding: 16px 48px; border-radius: 50px; border: 5px solid #fff; background: linear-gradient(135deg, #ff7eb3, #ff4f9a); color: #fff; cursor: pointer; box-shadow: 0 8px 0 #c2185b; }
+        .big-btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #c2185b; }
+        .rain { position: fixed; top: -60px; font-size: clamp(30px, 6vw, 56px); pointer-events: none; z-index: 1400; animation: fall linear forwards; }
+        @keyframes fall { to { transform: translateY(115vh) rotate(360deg); } }
+    </style>
+</head>
+
+<body>
+    <canvas id="c"></canvas>
+
+    <div id="hud">
+        <div id="goal">
+            <span id="goal-text">Pop the</span>
+            <span id="goal-letter">A</span>
+            <div id="dots"></div>
+        </div>
+    </div>
+
+    <div id="game-nav"><button id="nav-toggle" aria-label="Games">☰</button></div>
+    <div id="nav-overlay" class="hidden">
+        <button id="nav-close" aria-label="Close">✕</button>
+        <div class="nav-links"><!-- filled from games.js --></div>
+    </div>
+
+    <div id="start" class="screen">
+        <h1>🛁 Bubble Pop! 🦆</h1>
+        <p>Pop the bubbles with the right letter!</p>
+        <p>Tap bubbles — or press the letter on the keyboard.</p>
+        <button class="big-btn" id="start-btn">Splash! 💦</button>
+    </div>
+
+    <script>
+        // ============================================
+        // BUBBLE POP LETTERS
+        // ============================================
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+        const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const POPS_PER_LETTER = 5;
+
+        let W, H, DPR, tubTop, bubbleR;
+        let bubbles = [], bits = [];
+        let target = 'A', got = 0, playing = false, spawnTimer = 0, last = 0, t = 0;
+        let letterQueue = [];
+
+        // ---------- Sound & speech ----------
+        let AC = null;
+        function tone(freq, dur = 0.15, type = 'sine', vol = 0.2, slideTo) {
+            try {
+                AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+                if (AC.state === 'suspended') AC.resume();
+                const now = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+                o.type = type; o.frequency.setValueAtTime(freq, now);
+                if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, now + dur);
+                g.gain.setValueAtTime(vol, now); g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+                o.connect(g).connect(AC.destination); o.start(now); o.stop(now + dur);
+            } catch (e) { }
+        }
+        function say(text) {
+            try {
+                if (!('speechSynthesis' in window)) return;
+                speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.rate = 0.85; u.pitch = 1.2;
+                speechSynthesis.speak(u);
+            } catch (e) { }
+        }
+        const popSound = (big) => { tone(big ? 500 : 700, big ? 0.18 : 0.1, 'sine', big ? 0.3 : 0.15, big ? 1400 : 1200); };
+
+        // ---------- Setup ----------
+        function resize() {
+            DPR = Math.min(window.devicePixelRatio || 1, 2);
+            W = window.innerWidth; H = window.innerHeight;
+            canvas.width = W * DPR; canvas.height = H * DPR;
+            ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+            tubTop = H * 0.8;
+            bubbleR = Math.max(38, Math.min(W, H) * 0.085);
+        }
+
+        function nextLetter() {
+            if (!letterQueue.length) letterQueue = LETTERS.split('').sort(() => Math.random() - 0.5);
+            target = letterQueue.pop();
+            got = 0;
+            document.getElementById('goal-letter').textContent = target;
+            renderDots();
+            say('Pop the ' + target + '!');
+        }
+
+        function renderDots() {
+            const dots = document.getElementById('dots');
+            dots.innerHTML = '';
+            for (let i = 0; i < POPS_PER_LETTER; i++) {
+                const d = document.createElement('div');
+                d.className = 'dot' + (i < got ? ' on' : '');
+                dots.appendChild(d);
+            }
+        }
+
+        function spawnBubble(forceTarget) {
+            const onScreenTargets = bubbles.filter(b => b.letter === target).length;
+            const isTarget = forceTarget || onScreenTargets === 0 || Math.random() < 0.4;
+            let letter = target;
+            if (!isTarget) { do { letter = LETTERS[Math.floor(Math.random() * 26)]; } while (letter === target); }
+            const r = bubbleR * (0.85 + Math.random() * 0.3);
+            bubbles.push({
+                x: r + Math.random() * (W - 2 * r),
+                y: tubTop + r * 0.3,
+                r, letter,
+                vy: -(H * 0.06 + Math.random() * H * 0.04),   // px per second (slow & gentle)
+                wob: Math.random() * Math.PI * 2,
+                hue: Math.floor(Math.random() * 360)
+            });
+        }
+
+        // ---------- Popping ----------
+        function pop(b) {
+            bubbles.splice(bubbles.indexOf(b), 1);
+            const right = b.letter === target;
+            const n = right ? 22 : 10;
+            for (let i = 0; i < n; i++) {
+                const a = Math.random() * Math.PI * 2, s = (right ? 260 : 160) * (0.4 + Math.random());
+                bits.push({ x: b.x, y: b.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, hue: right ? 45 + Math.random() * 30 : b.hue, size: right ? 8 : 5, star: right && i % 3 === 0 });
+            }
+            popSound(right);
+            if (right) {
+                got++;
+                renderDots();
+                if (got >= POPS_PER_LETTER) {
+                    celebrate();
+                } else {
+                    say(b.letter);
+                }
+            }
+        }
+
+        function celebrate() {
+            playing = false;
+            say('Hooray! You popped all the ' + target + "'s!");
+            [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.25, 'triangle', 0.2), i * 120));
+            const emojis = ['🫧', '🦆', '⭐', '🎉', '💦', '✨'];
+            for (let i = 0; i < 30; i++) {
+                setTimeout(() => {
+                    const e = document.createElement('div');
+                    e.className = 'rain';
+                    e.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                    e.style.left = Math.random() * 95 + 'vw';
+                    e.style.animationDuration = (2 + Math.random() * 2) + 's';
+                    document.body.appendChild(e);
+                    setTimeout(() => e.remove(), 4200);
+                }, i * 60);
+            }
+            setTimeout(() => {
+                nextLetter();
+                playing = true;
+            }, 2600);
+        }
+
+        function hitTest(x, y) {
+            // top-most (last drawn) bubble under the finger, with a generous margin
+            for (let i = bubbles.length - 1; i >= 0; i--) {
+                const b = bubbles[i];
+                if (Math.hypot(x - (b.drawX ?? b.x), y - b.y) < b.r * 1.15) return b;
+            }
+            return null;
+        }
+
+        canvas.addEventListener('pointerdown', (e) => {
+            if (!playing) return;
+            const b = hitTest(e.clientX, e.clientY);
+            if (b) pop(b);
+            else { // splash in the water anyway — everything should feel fun
+                for (let i = 0; i < 6; i++) bits.push({ x: e.clientX, y: e.clientY, vx: (Math.random() - .5) * 200, vy: -Math.random() * 200, life: 1, hue: 200, size: 4 });
+                tone(300, 0.08, 'sine', 0.08, 200);
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (!playing || e.key.length !== 1) return;
+            const k = e.key.toUpperCase();
+            if (!LETTERS.includes(k)) return;
+            // pop the highest bubble with that letter; if none, make one and pop it
+            const matches = bubbles.filter(b => b.letter === k).sort((a, b) => a.y - b.y);
+            if (matches.length) pop(matches[0]);
+            else if (k === target) { spawnBubble(true); pop(bubbles[bubbles.length - 1]); }
+            else tone(250, 0.1, 'sine', 0.08);
+        });
+
+        // ---------- Drawing ----------
+        function drawBackground() {
+            // tiles
+            ctx.fillStyle = '#bfe9ff';
+            ctx.fillRect(0, 0, W, H);
+            const tile = Math.max(50, W / 12);
+            ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+            ctx.lineWidth = 3;
+            for (let x = 0; x < W; x += tile) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, tubTop); ctx.stroke(); }
+            for (let y = 0; y < tubTop; y += tile) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+        }
+
+        function drawTub() {
+            // water
+            const wy = tubTop;
+            ctx.fillStyle = '#5ec8ff';
+            ctx.beginPath();
+            ctx.moveTo(0, H);
+            ctx.lineTo(0, wy);
+            for (let x = 0; x <= W; x += 20) ctx.lineTo(x, wy + Math.sin(x * 0.02 + t * 2) * 6);
+            ctx.lineTo(W, H);
+            ctx.fill();
+            // foam
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            for (let x = 0; x < W + 40; x += 38) {
+                ctx.beginPath();
+                ctx.arc(x, wy + Math.sin(x * 0.02 + t * 2) * 6, 18 + Math.sin(x + t) * 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            // tub rim
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, H - H * 0.07, W, H * 0.07);
+            ctx.fillStyle = '#dfe8ef';
+            ctx.fillRect(0, H - H * 0.07, W, 6);
+            // rubber duck
+            const dx = W * 0.5 + Math.sin(t * 0.6) * W * 0.3;
+            const dy = wy - 10 + Math.sin(t * 2.2) * 5;
+            ctx.save();
+            ctx.font = `${Math.min(W, H) * 0.11}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.translate(dx, dy);
+            if (Math.cos(t * 0.6) < 0) ctx.scale(-1, 1);
+            ctx.fillText('🦆', 0, 0);
+            ctx.restore();
+        }
+
+        function drawBubble(b) {
+            const x = b.x + Math.sin(b.wob) * b.r * 0.15;
+            b.drawX = x;
+            const g = ctx.createRadialGradient(x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.1, x, b.y, b.r);
+            g.addColorStop(0, 'rgba(255,255,255,0.95)');
+            g.addColorStop(0.35, `hsla(${b.hue},90%,85%,0.35)`);
+            g.addColorStop(0.9, `hsla(${(b.hue + 60) % 360},90%,70%,0.45)`);
+            g.addColorStop(1, `hsla(${(b.hue + 120) % 360},90%,60%,0.75)`);
+            ctx.fillStyle = g;
+            ctx.beginPath(); ctx.arc(x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            // shine
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.beginPath(); ctx.ellipse(x - b.r * 0.4, b.y - b.r * 0.45, b.r * 0.18, b.r * 0.1, -0.6, 0, Math.PI * 2); ctx.fill();
+            // letter
+            ctx.font = `bold ${b.r * 1.05}px 'Arial Rounded MT Bold', Arial, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.lineWidth = Math.max(4, b.r * 0.12);
+            ctx.strokeStyle = '#1c5d99';
+            ctx.strokeText(b.letter, x, b.y + b.r * 0.06);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(b.letter, x, b.y + b.r * 0.06);
+        }
+
+        function drawBits(dt) {
+            bits = bits.filter(p => p.life > 0);
+            bits.forEach(p => {
+                p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 300 * dt; p.life -= dt * 1.4;
+                ctx.globalAlpha = Math.max(0, p.life);
+                if (p.star) {
+                    ctx.font = `${p.size * 3}px sans-serif`;
+                    ctx.fillText('⭐', p.x, p.y);
+                } else {
+                    ctx.fillStyle = `hsl(${p.hue},90%,70%)`;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+                }
+            });
+            ctx.globalAlpha = 1;
+        }
+
+        function loop(ts) {
+            const dt = last ? Math.min((ts - last) / 1000, 0.05) : 0.016;
+            last = ts; t += dt;
+            drawBackground();
+
+            if (playing) {
+                spawnTimer -= dt;
+                const maxBubbles = Math.max(6, Math.floor((W * H) / (bubbleR * bubbleR * 14)));
+                if (spawnTimer <= 0 && bubbles.length < maxBubbles) { spawnBubble(); spawnTimer = 0.9; }
+            }
+            bubbles.forEach(b => { b.y += b.vy * dt; b.wob += dt * 1.5; });
+            // bubbles that float off the top gently disappear
+            bubbles = bubbles.filter(b => b.y > -b.r);
+            bubbles.forEach(drawBubble);
+            drawTub();
+            drawBits(dt);
+            requestAnimationFrame(loop);
+        }
+
+        // ---------- Start ----------
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('start').classList.add('hidden');
+            tone(600, 0.1); // unlock audio on iOS
+            nextLetter();
+            for (let i = 0; i < 4; i++) { spawnBubble(i === 0); bubbles[i].y = tubTop - (i + 1) * H * 0.15; }
+            playing = true;
+        });
+
+        // Menu
+        document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
+        document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
+
+        window.addEventListener('resize', resize);
+        resize();
+        renderDots();
+        requestAnimationFrame(loop);
+    </script>
+    <script src="games.js"></script>
+</body>
+
+</html>

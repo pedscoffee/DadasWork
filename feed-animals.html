@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>🥕 Feed the Animals</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+        html, body { width: 100%; height: 100%; overflow: hidden; touch-action: none; position: fixed; font-family: 'Arial Rounded MT Bold', 'Chalkboard SE', 'Comic Sans MS', sans-serif; }
+        body { background: linear-gradient(180deg, #8fd3ff 0%, #c9ecff 40%, #a5dc72 40%, #7cc35a 100%); }
+
+        /* Barn & fence scenery */
+        #barn { position: absolute; right: 4vw; top: 14vh; width: 22vmin; height: 26vh; background: #c0392b; border-radius: 6px 6px 0 0; box-shadow: inset 0 0 0 6px #fff; }
+        #barn::before { content: ''; position: absolute; left: -10%; top: -45%; width: 120%; height: 50%; background: #8e2b20; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+        #barn::after { content: ''; position: absolute; left: 30%; bottom: 0; width: 40%; height: 55%; background: repeating-linear-gradient(45deg, #fff 0 4px, #c0392b 4px 16px); border: 4px solid #fff; }
+        #fence { position: absolute; left: 0; right: 0; top: 33vh; height: 9vh; background:
+            linear-gradient(#f5e6c8, #f5e6c8) 0 30% / 100% 12% no-repeat,
+            linear-gradient(#f5e6c8, #f5e6c8) 0 75% / 100% 12% no-repeat,
+            repeating-linear-gradient(90deg, #f5e6c8 0 14px, transparent 14px 60px); opacity: .9; }
+
+        /* Animals */
+        #animals { position: absolute; left: 0; right: 0; top: 30vh; display: flex; justify-content: center; gap: 3vw; padding: 0 3vw; }
+        .animal { position: relative; flex: 0 1 auto; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+        .animal .face { font-size: min(22vw, 22vh, 190px); line-height: 1.05; filter: drop-shadow(0 6px 4px rgba(0, 0, 0, .25)); transition: transform .2s; }
+        .animal .name { font-size: clamp(16px, 3.2vw, 26px); color: #fff; background: rgba(0, 0, 0, .25); padding: 2px 14px; border-radius: 20px; margin-top: 4px; }
+        .animal.over .face { transform: scale(1.12); }
+        .animal.yum .face { animation: chomp .25s ease-in-out 4 alternate; }
+        .animal.nope .face { animation: shake .45s ease; }
+        .animal.hint .face { animation: hint 0.8s ease-in-out infinite alternate; }
+        @keyframes chomp { to { transform: scale(1.18, .88) translateY(6px); } }
+        @keyframes shake { 20% { transform: rotate(-14deg); } 40% { transform: rotate(12deg); } 60% { transform: rotate(-8deg); } 80% { transform: rotate(6deg); } }
+        @keyframes hint { to { transform: scale(1.15); filter: drop-shadow(0 0 18px #fff) drop-shadow(0 6px 4px rgba(0, 0, 0, .25)); } }
+        .bubble { position: absolute; top: -8%; left: 50%; transform: translateX(-50%); background: #fff; border-radius: 18px; padding: 4px 14px; font-size: clamp(16px, 3vw, 24px); color: #333; white-space: nowrap; box-shadow: 0 4px 10px rgba(0, 0, 0, .2); animation: bubbleUp 1.4s ease forwards; pointer-events: none; }
+        @keyframes bubbleUp { 0% { opacity: 0; transform: translate(-50%, 10px) scale(.6); } 20% { opacity: 1; transform: translate(-50%, 0) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -20px); } }
+        .heart { position: absolute; font-size: clamp(24px, 5vw, 44px); pointer-events: none; animation: heartUp 1.3s ease-out forwards; z-index: 50; }
+        @keyframes heartUp { to { transform: translate(var(--dx), -120px) scale(1.4); opacity: 0; } }
+
+        /* Food basket */
+        #basket { position: absolute; left: 50%; bottom: 4vh; transform: translateX(-50%); width: min(46vw, 34vh, 300px); height: min(30vw, 22vh, 190px);
+            background: repeating-linear-gradient(45deg, #c68642 0 10px, #a0522d 10px 20px); border-radius: 0 0 40% 40% / 0 0 60% 60%; border-top: 10px solid #8b4513; box-shadow: 0 10px 20px rgba(0, 0, 0, .25); }
+        #food { position: absolute; left: 50%; bottom: calc(4vh + min(22vw, 16vh, 140px)); transform: translate(-50%, 0); font-size: min(22vw, 18vh, 160px); line-height: 1; cursor: grab; z-index: 100; touch-action: none; filter: drop-shadow(0 6px 4px rgba(0, 0, 0, .3)); }
+        #food.dragging { cursor: grabbing; transition: none; transform: translate(-50%, -50%) scale(1.15); }
+        #food.flying { transition: left .45s ease-in, top .45s ease-in, transform .45s ease-in, opacity .45s; }
+        #food.appear { animation: appear .4s ease; }
+        @keyframes appear { from { transform: translate(-50%, 40px) scale(0); } }
+        #hint-text { position: absolute; left: 0; right: 0; bottom: calc(4vh + min(30vw, 22vh, 190px) + min(22vw, 18vh, 160px) + 1vh); text-align: center; font-size: clamp(18px, 3.6vw, 28px); color: #fff; text-shadow: 0 2px 4px rgba(0, 0, 0, .4); pointer-events: none; }
+
+        #stars { position: absolute; top: 14px; right: 14px; background: rgba(255, 255, 255, .85); border-radius: 30px; padding: 6px 14px; font-size: clamp(16px, 3.2vw, 26px); z-index: 10; letter-spacing: 2px; }
+
+        /* Shared game menu (list filled by games.js) */
+        #game-nav { position: fixed; top: 12px; left: 12px; z-index: 2000; }
+        #nav-toggle { background: rgba(0, 0, 0, 0.45); border: 2px solid rgba(255, 255, 255, 0.6); color: #fff; font-size: 24px; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; }
+        #nav-overlay { position: fixed; inset: 0; background: rgba(10, 10, 30, 0.95); z-index: 2001; display: flex; align-items: center; justify-content: center; transition: opacity .3s; }
+        #nav-overlay.hidden { opacity: 0; pointer-events: none; }
+        #nav-close { position: absolute; top: 24px; right: 24px; background: none; border: none; color: #fff; font-size: 40px; cursor: pointer; }
+        .nav-links { display: flex; flex-direction: column; gap: 12px; text-align: center; max-height: 85vh; overflow-y: auto; padding: 10px; }
+        .nav-links a { color: #fff; text-decoration: none; font-size: 22px; padding: 10px 30px; border-radius: 30px; background: rgba(255, 255, 255, 0.1); }
+
+        .screen { position: fixed; inset: 0; z-index: 1500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(143, 211, 255, 0.93); text-align: center; padding: 20px; }
+        .screen.hidden { display: none; }
+        .screen h1 { font-size: clamp(36px, 8vw, 72px); color: #fff; text-shadow: 0 4px 0 #2b7a0b; }
+        .screen p { font-size: clamp(18px, 3.5vw, 26px); color: #0d3b66; }
+        .big-btn { font: inherit; font-size: clamp(24px, 5vw, 36px); padding: 16px 48px; border-radius: 50px; border: 5px solid #fff; background: linear-gradient(135deg, #8bc34a, #43a047); color: #fff; cursor: pointer; box-shadow: 0 8px 0 #2e7d32; }
+        .rain { position: fixed; top: -60px; font-size: clamp(30px, 6vw, 56px); pointer-events: none; z-index: 1400; animation: fall linear forwards; }
+        @keyframes fall { to { transform: translateY(115vh) rotate(360deg); } }
+    </style>
+</head>
+
+<body>
+    <div id="barn"></div>
+    <div id="fence"></div>
+    <div id="animals"></div>
+    <div id="hint-text">Who wants this?</div>
+    <div id="basket"></div>
+    <div id="food"></div>
+    <div id="stars"></div>
+
+    <div id="game-nav"><button id="nav-toggle" aria-label="Games">☰</button></div>
+    <div id="nav-overlay" class="hidden">
+        <button id="nav-close" aria-label="Close">✕</button>
+        <div class="nav-links"><!-- filled from games.js --></div>
+    </div>
+
+    <div id="start" class="screen">
+        <h1>🥕 Feed the Animals 🐰</h1>
+        <p>The animals are hungry!</p>
+        <p>Drag the food to the animal who eats it — or just tap the animal.</p>
+        <button class="big-btn" id="start-btn">Dinner Time!</button>
+    </div>
+
+    <script>
+        // ============================================
+        // FEED THE ANIMALS
+        // ============================================
+        const ANIMALS = [
+            { a: '🐶', name: 'Dog', food: '🦴', sound: 'Woof woof!' },
+            { a: '🐱', name: 'Cat', food: '🐟', sound: 'Meow!' },
+            { a: '🐰', name: 'Bunny', food: '🥕', sound: 'Nom nom nom!' },
+            { a: '🐵', name: 'Monkey', food: '🍌', sound: 'Ooh ooh ah ah!' },
+            { a: '🐭', name: 'Mouse', food: '🧀', sound: 'Squeak squeak!' },
+            { a: '🐼', name: 'Panda', food: '🎋', sound: 'Munch munch!' },
+            { a: '🐻', name: 'Bear', food: '🍯', sound: 'Mmm, honey!' },
+            { a: '🐔', name: 'Chicken', food: '🌽', sound: 'Bawk bawk!' },
+            { a: '🐴', name: 'Horse', food: '🍎', sound: 'Neigh!' },
+            { a: '🐿️', name: 'Squirrel', food: '🌰', sound: 'Crunch crunch!' },
+            { a: '🐧', name: 'Penguin', food: '🦐', sound: 'Squawk!' },
+            { a: '🐨', name: 'Koala', food: '🌿', sound: 'Yum yum!' }
+        ];
+        const MEALS_PER_ROUND = 8;
+        const FOOD_NAMES = { '🦴': 'bone', '🐟': 'fish', '🥕': 'carrot', '🍌': 'banana', '🧀': 'cheese', '🎋': 'bamboo', '🍯': 'honey', '🌽': 'corn', '🍎': 'apple', '🌰': 'acorn', '🦐': 'shrimp', '🌿': 'leaves' };
+
+        const animalsEl = document.getElementById('animals');
+        const foodEl = document.getElementById('food');
+        let onStage = [], current = null, meals = 0, misses = 0, busy = true, hintTimer = null;
+
+        // ---------- Sound & speech ----------
+        let AC = null;
+        function tone(freq, dur = 0.15, type = 'sine', vol = 0.2, slideTo, delay = 0) {
+            try {
+                AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+                if (AC.state === 'suspended') AC.resume();
+                const now = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+                o.type = type; o.frequency.setValueAtTime(freq, now);
+                if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, now + dur);
+                g.gain.setValueAtTime(0.0001, AC.currentTime);
+                g.gain.setValueAtTime(vol, now); g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+                o.connect(g).connect(AC.destination); o.start(now); o.stop(now + dur);
+            } catch (e) { }
+        }
+        function say(text) {
+            try {
+                if (!('speechSynthesis' in window)) return;
+                speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.rate = 0.85; u.pitch = 1.2;
+                speechSynthesis.speak(u);
+            } catch (e) { }
+        }
+        const chompSound = () => { for (let i = 0; i < 4; i++) tone(160 + Math.random() * 60, 0.08, 'square', 0.06, 90, i * 0.13); };
+
+        // ---------- Rounds ----------
+        function howMany() { return window.innerWidth >= 700 ? 4 : 3; }
+
+        function newRound() {
+            meals = 0;
+            renderStars();
+            pickAnimals();
+            nextFood();
+        }
+
+        function pickAnimals() {
+            const pool = [...ANIMALS].sort(() => Math.random() - 0.5);
+            onStage = pool.slice(0, howMany());
+            animalsEl.innerHTML = '';
+            onStage.forEach((an, i) => {
+                const d = document.createElement('div');
+                d.className = 'animal';
+                d.dataset.i = i;
+                d.innerHTML = `<div class="face">${an.a}</div><div class="name">${an.name}</div>`;
+                d.addEventListener('click', () => { if (!dragMoved) feed(i); });
+                animalsEl.appendChild(d);
+            });
+        }
+
+        function nextFood() {
+            busy = true;
+            misses = 0;
+            clearTimeout(hintTimer);
+            document.querySelectorAll('.animal').forEach(a => a.classList.remove('hint'));
+            // Never the same animal twice in a row (keeps it interesting)
+            let pick;
+            do { pick = onStage[Math.floor(Math.random() * onStage.length)]; } while (current && pick === current && onStage.length > 1);
+            current = pick;
+            foodEl.className = '';
+            foodEl.style.left = ''; foodEl.style.top = ''; foodEl.style.opacity = ''; foodEl.style.transform = '';
+            foodEl.textContent = current.food;
+            void foodEl.offsetWidth;
+            foodEl.classList.add('appear');
+            busy = false;
+            const fname = FOOD_NAMES[current.food] || 'food';
+            document.getElementById('hint-text').textContent = `Who wants the ${fname}?`;
+            say(`Who wants the ${fname}?`);
+            // gentle hint if nobody's been fed for a while
+            hintTimer = setTimeout(showHint, 9000);
+        }
+
+        function showHint() {
+            const i = onStage.indexOf(current);
+            const el = animalsEl.children[i];
+            if (el) el.classList.add('hint');
+        }
+
+        function speech(el, text) {
+            const b = document.createElement('div');
+            b.className = 'bubble';
+            b.textContent = text;
+            el.appendChild(b);
+            setTimeout(() => b.remove(), 1500);
+        }
+
+        function feed(i) {
+            if (busy) return;
+            const an = onStage[i];
+            const el = animalsEl.children[i];
+            if (an === current) {
+                busy = true;
+                clearTimeout(hintTimer);
+                // food flies into the animal's mouth
+                const r = el.querySelector('.face').getBoundingClientRect();
+                const fr = foodEl.getBoundingClientRect();
+                foodEl.classList.remove('appear', 'dragging');
+                foodEl.style.left = (fr.left + fr.width / 2) + 'px';
+                foodEl.style.top = (fr.top + fr.height / 2) + 'px';
+                foodEl.style.transform = 'translate(-50%, -50%)';
+                void foodEl.offsetWidth;
+                foodEl.classList.add('flying');
+                foodEl.style.left = (r.left + r.width / 2) + 'px';
+                foodEl.style.top = (r.top + r.height * 0.65) + 'px';
+                foodEl.style.transform = 'translate(-50%, -50%) scale(.3)';
+                foodEl.style.opacity = '0';
+                setTimeout(() => {
+                    el.classList.remove('hint');
+                    el.classList.add('yum');
+                    chompSound();
+                    speech(el, an.sound);
+                    say(an.sound);
+                    for (let h = 0; h < 5; h++) {
+                        const ht = document.createElement('div');
+                        ht.className = 'heart';
+                        ht.textContent = ['❤️', '💛', '💖', '⭐'][h % 4];
+                        ht.style.left = (r.left + r.width * (0.2 + Math.random() * 0.6)) + 'px';
+                        ht.style.top = (r.top + r.height * 0.3) + 'px';
+                        ht.style.setProperty('--dx', ((Math.random() - 0.5) * 120) + 'px');
+                        document.body.appendChild(ht);
+                        setTimeout(() => ht.remove(), 1400);
+                    }
+                    setTimeout(() => el.classList.remove('yum'), 1100);
+                    meals++;
+                    renderStars();
+                    if (meals >= MEALS_PER_ROUND) setTimeout(party, 1200);
+                    else setTimeout(nextFood, 1500);
+                }, 450);
+            } else {
+                misses++;
+                el.classList.remove('nope');
+                void el.offsetWidth;
+                el.classList.add('nope');
+                speech(el, 'No thank you!');
+                say(`The ${an.name.toLowerCase()} doesn't eat that. No thank you!`);
+                tone(220, 0.2, 'sine', 0.12, 160);
+                returnFood();
+                if (misses >= 2) showHint();
+            }
+        }
+
+        function returnFood() {
+            foodEl.classList.remove('dragging', 'flying');
+            foodEl.style.left = ''; foodEl.style.top = ''; foodEl.style.transform = '';
+        }
+
+        function renderStars() {
+            document.getElementById('stars').textContent = '⭐'.repeat(meals) + '☆'.repeat(MEALS_PER_ROUND - meals);
+        }
+
+        function party() {
+            say('Everybody is full! Great job!');
+            [523, 659, 784, 1046, 784, 1046].forEach((f, i) => tone(f, 0.25, 'triangle', 0.18, null, i * 0.13));
+            const emojis = onStage.map(a => a.a).concat(['🎉', '⭐', '❤️']);
+            for (let i = 0; i < 30; i++) {
+                setTimeout(() => {
+                    const e = document.createElement('div');
+                    e.className = 'rain';
+                    e.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+                    e.style.left = Math.random() * 95 + 'vw';
+                    e.style.animationDuration = (2 + Math.random() * 2) + 's';
+                    document.body.appendChild(e);
+                    setTimeout(() => e.remove(), 4200);
+                }, i * 70);
+            }
+            setTimeout(newRound, 3500);
+        }
+
+        // ---------- Dragging the food ----------
+        let dragging = false, dragMoved = false, startX = 0, startY = 0;
+        function animalAt(x, y) {
+            const kids = [...animalsEl.children];
+            for (let i = 0; i < kids.length; i++) {
+                const r = kids[i].getBoundingClientRect();
+                const pad = 20;
+                if (x > r.left - pad && x < r.right + pad && y > r.top - pad && y < r.bottom + pad) return i;
+            }
+            return -1;
+        }
+        foodEl.addEventListener('pointerdown', (e) => {
+            if (busy) return;
+            dragging = true; dragMoved = false;
+            startX = e.clientX; startY = e.clientY;
+            foodEl.setPointerCapture(e.pointerId);
+            foodEl.classList.remove('appear');
+            tone(500, 0.06, 'sine', 0.08);
+        });
+        foodEl.addEventListener('pointermove', (e) => {
+            if (!dragging) return;
+            if (Math.hypot(e.clientX - startX, e.clientY - startY) > 8) dragMoved = true;
+            if (!dragMoved) return;
+            foodEl.classList.add('dragging');
+            foodEl.style.left = e.clientX + 'px';
+            foodEl.style.top = e.clientY + 'px';
+            const over = animalAt(e.clientX, e.clientY);
+            [...animalsEl.children].forEach((a, i) => a.classList.toggle('over', i === over));
+        });
+        function endDrag(e) {
+            if (!dragging) return;
+            dragging = false;
+            [...animalsEl.children].forEach(a => a.classList.remove('over'));
+            if (!dragMoved) return; // a plain tap on the food does nothing (tap an animal instead)
+            const i = animalAt(e.clientX, e.clientY);
+            if (i >= 0) feed(i); else returnFood();
+            setTimeout(() => { dragMoved = false; }, 50);
+        }
+        foodEl.addEventListener('pointerup', endDrag);
+        foodEl.addEventListener('pointercancel', endDrag);
+
+        // Keyboard: number keys or arrow+enter to feed
+        document.addEventListener('keydown', (e) => {
+            const n = parseInt(e.key, 10);
+            if (n >= 1 && n <= onStage.length) feed(n - 1);
+        });
+
+        window.addEventListener('resize', () => {
+            if (onStage.length !== howMany() && !busy) { pickAnimals(); current = null; nextFood(); }
+        });
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('start').classList.add('hidden');
+            tone(600, 0.05, 'sine', 0.01); // unlock audio on iOS
+            newRound();
+        });
+
+        // Menu
+        document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
+        document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
+    </script>
+    <script src="games.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>🚚 Dump Truck Builder</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+        html, body { width: 100%; height: 100%; overflow: hidden; touch-action: none; position: fixed; font-family: 'Arial Rounded MT Bold', 'Chalkboard SE', 'Comic Sans MS', sans-serif; background: #8fd3ff; }
+        canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+        .drive-btn { position: fixed; bottom: 3vh; width: min(20vw, 15vh, 120px); height: min(20vw, 15vh, 120px); border-radius: 50%; border: 5px solid #fff;
+            background: rgba(255, 183, 3, .9); color: #fff; font-size: min(10vw, 8vh, 60px); z-index: 20; box-shadow: 0 6px 0 #c77c02; cursor: pointer; touch-action: none; }
+        .drive-btn:active, .drive-btn.down { transform: translateY(4px); box-shadow: 0 2px 0 #c77c02; }
+        #left-btn { left: 3vw; }
+        #right-btn { right: 3vw; }
+        #horn-btn { left: 50%; transform: translateX(-50%); background: rgba(230, 57, 70, .9); box-shadow: 0 6px 0 #9d0208; width: min(15vw, 11vh, 90px); height: min(15vw, 11vh, 90px); font-size: min(7vw, 6vh, 44px); }
+        #horn-btn:active { transform: translate(-50%, 4px); }
+
+        #built { position: fixed; top: 14px; right: 14px; background: rgba(255, 255, 255, .85); border-radius: 30px; padding: 6px 14px; font-size: clamp(16px, 3.2vw, 26px); z-index: 10; max-width: 60vw; overflow: hidden; white-space: nowrap; }
+
+        /* Shared game menu (list filled by games.js) */
+        #game-nav { position: fixed; top: 12px; left: 12px; z-index: 2000; }
+        #nav-toggle { background: rgba(0, 0, 0, 0.45); border: 2px solid rgba(255, 255, 255, 0.6); color: #fff; font-size: 24px; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; }
+        #nav-overlay { position: fixed; inset: 0; background: rgba(10, 10, 30, 0.95); z-index: 2001; display: flex; align-items: center; justify-content: center; transition: opacity .3s; }
+        #nav-overlay.hidden { opacity: 0; pointer-events: none; }
+        #nav-close { position: absolute; top: 24px; right: 24px; background: none; border: none; color: #fff; font-size: 40px; cursor: pointer; }
+        .nav-links { display: flex; flex-direction: column; gap: 12px; text-align: center; max-height: 85vh; overflow-y: auto; padding: 10px; }
+        .nav-links a { color: #fff; text-decoration: none; font-size: 22px; padding: 10px 30px; border-radius: 30px; background: rgba(255, 255, 255, 0.1); }
+
+        .screen { position: fixed; inset: 0; z-index: 1500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(255, 209, 102, 0.94); text-align: center; padding: 20px; }
+        .screen.hidden { display: none; }
+        .screen h1 { font-size: clamp(36px, 8vw, 72px); color: #fff; text-shadow: 0 4px 0 #b5651d; }
+        .screen p { font-size: clamp(18px, 3.5vw, 26px); color: #5a3e1b; }
+        .big-btn { font: inherit; font-size: clamp(24px, 5vw, 36px); padding: 16px 48px; border-radius: 50px; border: 5px solid #fff; background: linear-gradient(135deg, #ffb703, #fb8500); color: #fff; cursor: pointer; box-shadow: 0 8px 0 #b55d00; }
+        .rain { position: fixed; top: -60px; font-size: clamp(30px, 6vw, 56px); pointer-events: none; z-index: 1400; animation: fall linear forwards; }
+        @keyframes fall { to { transform: translateY(115vh) rotate(360deg); } }
+    </style>
+</head>
+
+<body>
+    <canvas id="c"></canvas>
+    <button class="drive-btn" id="left-btn" aria-label="Drive left">◀</button>
+    <button class="drive-btn" id="horn-btn" aria-label="Honk">📯</button>
+    <button class="drive-btn" id="right-btn" aria-label="Back up">▶</button>
+    <div id="built">🏗️</div>
+
+    <div id="game-nav"><button id="nav-toggle" aria-label="Games">☰</button></div>
+    <div id="nav-overlay" class="hidden">
+        <button id="nav-close" aria-label="Close">✕</button>
+        <div class="nav-links"><!-- filled from games.js --></div>
+    </div>
+
+    <div id="start" class="screen">
+        <h1>🚚 Dump Truck Builder 🏗️</h1>
+        <p>Drive to the digger to get a load of rocks.</p>
+        <p>Back up to the hole and dump them in. Fill the hole to build something!</p>
+        <button class="big-btn" id="start-btn">Let's Build!</button>
+    </div>
+
+    <script>
+        // ============================================
+        // DUMP TRUCK BUILDER
+        // Truck faces LEFT. Far left = loading spot under the digger.
+        // Far right = rear end over the hole (it backs up, beep beep!).
+        // ============================================
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+
+        const ROCKS_PER_LOAD = 12, ROCKS_PER_SCOOP = 4, LOADS_PER_HOLE = 2;
+        const BUILDINGS = [['🏠', 'a house'], ['🏰', 'a castle'], ['🏫', 'a school'], ['🎪', 'a circus tent'], ['⛲', 'a fountain'],
+            ['🏡', 'a home with a garden'], ['🗼', 'a tower'], ['🎡', 'a Ferris wheel'], ['🏟️', 'a stadium'], ['🚒', 'a fire station']];
+        const ROCK_COLORS = ['#8d6e63', '#a1887f', '#795548', '#9e9e9e', '#bcaaa4', '#6d4c41'];
+
+        let W, H, DPR, s, G, TL, wr;
+        let ex, ey, loadX, pitC, pitW, pitD, minX, maxX;
+        let truck = { x: 0, v: 0, wheel: 0, bedAngle: 0, rocks: 0, colors: [] };
+        let targetX = null, keyDir = 0, holdDir = 0;
+        let digger = { phase: -1, t: 0 };           // phase -1 = idle
+        let dumping = 0;                            // 0 none, 1 raising/pouring, 2 lowering
+        let releaseTimer = 0;
+        let falling = [];                           // rocks in the air
+        let dust = [];
+        let pitFill = 0;
+        let building = null;                        // { emoji, name, t }
+        let skyline = [];
+        let playing = false, t = 0, last = 0, beepTimer = 0, buildQueue = [];
+        let clouds = Array.from({ length: 4 }, () => ({ x: Math.random(), y: 0.05 + Math.random() * 0.25, sp: 0.005 + Math.random() * 0.01, sz: 0.6 + Math.random() * 0.6 }));
+
+        // ---------- Sound & speech ----------
+        let AC = null;
+        function tone(freq, dur = 0.15, type = 'sine', vol = 0.2, slideTo, delay = 0) {
+            try {
+                AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+                if (AC.state === 'suspended') AC.resume();
+                const now = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+                o.type = type; o.frequency.setValueAtTime(freq, now);
+                if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, now + dur);
+                g.gain.setValueAtTime(0.0001, AC.currentTime);
+                g.gain.setValueAtTime(vol, now); g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+                o.connect(g).connect(AC.destination); o.start(now); o.stop(now + dur);
+            } catch (e) { }
+        }
+        function say(text) {
+            try {
+                if (!('speechSynthesis' in window)) return;
+                speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(text);
+                u.rate = 0.85; u.pitch = 1.15;
+                speechSynthesis.speak(u);
+            } catch (e) { }
+        }
+        const honk = () => { tone(330, 0.35, 'sawtooth', 0.12); tone(415, 0.35, 'sawtooth', 0.1); };
+        const clunk = () => tone(120 + Math.random() * 60, 0.09, 'square', 0.05, 70);
+
+        // ---------- Layout ----------
+        function resize() {
+            DPR = Math.min(window.devicePixelRatio || 1, 2);
+            W = window.innerWidth; H = window.innerHeight;
+            canvas.width = W * DPR; canvas.height = H * DPR;
+            ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+            s = Math.max(0.42, Math.min(W / 720, H / 480));
+            G = H * 0.74;
+            TL = 250 * s;
+            wr = 26 * s;
+            ex = Math.max(W * 0.1, 90 * s);
+            ey = G - 95 * s;
+            loadX = ex + 150 * s;
+            pitW = 180 * s; pitD = 110 * s;
+            pitC = W - Math.max(W * 0.12, pitW * 0.62);
+            minX = loadX - 0.68 * TL;
+            maxX = (pitC - pitW / 2 + 0.38 * pitW) - TL;
+            if (maxX < minX + 40) maxX = minX + 40;
+            truck.x = Math.min(Math.max(truck.x || minX + (maxX - minX) * 0.5, minX), maxX);
+        }
+
+        // ---------- Truck geometry helpers ----------
+        const bedPivot = () => ({ x: truck.x + TL, y: G - wr - 20 * s });
+        const BED_LEN = () => 0.62 * TL, BED_H = () => 62 * s;
+        function bedToWorld(lx, ly) {
+            const p = bedPivot(), a = truck.bedAngle;
+            return { x: p.x + lx * Math.cos(a) - ly * Math.sin(a), y: p.y + lx * Math.sin(a) + ly * Math.cos(a) };
+        }
+        // rock heap layout in bed-local coords: rows of 5, 4, 3
+        function rockSlot(i) {
+            const rows = [5, 4, 3];
+            let r = 0, k = i;
+            while (r < rows.length && k >= rows[r]) { k -= rows[r]; r++; }
+            const n = rows[Math.min(r, 2)];
+            const span = BED_LEN() * 0.8;
+            const x = -BED_LEN() / 2 + (k - (n - 1) / 2) * (span / 5);
+            const y = -BED_H() + 6 * s - r * 15 * s;
+            return { x, y };
+        }
+
+        // ---------- Game logic ----------
+        function atLoader() { return Math.abs(truck.x - minX) < 4 && Math.abs(truck.v) < 8; }
+        function atPit() { return Math.abs(truck.x - maxX) < 4 && Math.abs(truck.v) < 8; }
+
+        function update(dt) {
+            // ---- driving ----
+            const dir = keyDir || holdDir;
+            const maxV = 280 * s;
+            let desired = 0;
+            if (dumping) desired = 0;  // hold still while the bed is up
+            else if (dir) { desired = dir * maxV; targetX = null; }
+            else if (targetX !== null) {
+                const tx = Math.min(Math.max(targetX, minX), maxX);
+                desired = Math.max(-maxV, Math.min(maxV, (tx - truck.x) * 3));
+                if (Math.abs(tx - truck.x) < 2) { targetX = null; desired = 0; }
+            }
+            truck.v += (desired - truck.v) * Math.min(1, dt * 5);
+            truck.x += truck.v * dt;
+            if (truck.x <= minX) { truck.x = minX; if (truck.v < 0) truck.v = 0; }
+            if (truck.x >= maxX) { truck.x = maxX; if (truck.v > 0) truck.v = 0; }
+            truck.wheel += truck.v * dt / wr;
+
+            // backing up beeps
+            beepTimer -= dt;
+            if (truck.v > 30 && beepTimer <= 0) { tone(1100, 0.14, 'square', 0.05); beepTimer = 0.45; }
+
+            // ---- digger loads the truck ----
+            if (digger.phase < 0 && atLoader() && truck.rocks < ROCKS_PER_LOAD && !dumping) {
+                digger.phase = 0;
+                if (truck.rocks === 0) say('Load it up!');
+            }
+            if (digger.phase >= 0) {
+                const prev = digger.phase;
+                digger.phase += dt / 2.0;
+                if (prev < 0.62 && digger.phase >= 0.62) dropScoop();
+                if (digger.phase >= 1) digger.phase = (atLoader() && truck.rocks + countFalling('bed') < ROCKS_PER_LOAD) ? 0 : -1;
+                if (prev < 0.2 && digger.phase >= 0.2) clunk();
+            }
+
+            // ---- dumping at the pit ----
+            if (!dumping && atPit() && truck.rocks > 0 && !building) {
+                dumping = 1; releaseTimer = 0;
+                tone(200, 0.8, 'sawtooth', 0.04, 300);
+            }
+            if (dumping === 1) {
+                truck.bedAngle = Math.min(0.85, truck.bedAngle + dt * 0.9);
+                if (truck.bedAngle > 0.45) {
+                    releaseTimer -= dt;
+                    if (releaseTimer <= 0 && truck.rocks > 0) {
+                        truck.rocks--;
+                        const color = truck.colors.pop() || ROCK_COLORS[0];
+                        const tip = bedToWorld(-4 * s, -BED_H() * 0.5);
+                        falling.push({ x: tip.x + (Math.random() - .5) * 10 * s, y: tip.y, vx: 40 * s + Math.random() * 30 * s, vy: 20 * s, r: 9 * s, color, dest: 'pit' });
+                        releaseTimer = 0.09;
+                    }
+                    if (truck.rocks === 0) dumping = 2;
+                }
+            } else if (dumping === 2) {
+                truck.bedAngle = Math.max(0, truck.bedAngle - dt * 0.8);
+                if (truck.bedAngle === 0) {
+                    dumping = 0;
+                    if (!building) say(pitFill < 0.99 ? 'Go get more rocks!' : '');
+                }
+            }
+
+            // ---- falling rocks ----
+            for (const r of falling) {
+                r.vy += 900 * s * dt; r.x += r.vx * dt; r.y += r.vy * dt;
+                if (r.dest === 'bed') {
+                    const bl = bedToWorld(-BED_LEN(), 0).x, br = bedToWorld(0, 0).x;
+                    const slot = rockSlot(Math.min(truck.rocks, ROCKS_PER_LOAD - 1));
+                    const landY = bedToWorld(slot.x, slot.y).y;
+                    if (r.x > bl && r.x < br && r.y >= landY && truck.rocks < ROCKS_PER_LOAD) {
+                        r.done = true; truck.rocks++; truck.colors.push(r.color); clunk();
+                        if (truck.rocks === ROCKS_PER_LOAD) { say('Full! Back it up to the hole!'); }
+                    } else if (r.y > G - r.r) { r.done = true; puff(r.x, G); }
+                } else {
+                    const pl = pitC - pitW / 2, pr = pitC + pitW / 2;
+                    const surface = G + pitD * (1 - pitFill);
+                    if (r.x > pl && r.x < pr && r.y >= surface - r.r * 0.5) {
+                        r.done = true; puff(r.x, surface);
+                        pitFill = Math.min(1, pitFill + 1 / (ROCKS_PER_LOAD * LOADS_PER_HOLE));
+                        clunk();
+                        if (pitFill >= 0.999 && !building) startBuilding();
+                    } else if (r.y > H) r.done = true;
+                }
+            }
+            falling = falling.filter(r => !r.done);
+
+            for (const d of dust) { d.x += d.vx * dt; d.y += d.vy * dt; d.life -= dt * 1.5; }
+            dust = dust.filter(d => d.life > 0);
+
+            if (building) {
+                building.t += dt;
+                if (building.t > 4.5) {
+                    skyline.push(building.emoji);
+                    document.getElementById('built').textContent = '🏗️ ' + skyline.join('');
+                    building = null; pitFill = 0;
+                }
+            }
+            clouds.forEach(c => { c.x += c.sp * dt; if (c.x > 1.2) c.x = -0.2; });
+        }
+
+        function countFalling(dest) { return falling.filter(r => r.dest === dest).length; }
+
+        function dropScoop() {
+            const room = ROCKS_PER_LOAD - truck.rocks - countFalling('bed');
+            const n = Math.max(0, Math.min(ROCKS_PER_SCOOP, room));
+            const b = bucketPos(0.62);
+            for (let i = 0; i < n; i++) {
+                falling.push({ x: b.x + (Math.random() - .5) * 30 * s, y: b.y + i * 6 * s, vx: (Math.random() - .5) * 20 * s, vy: 0, r: 9 * s, color: ROCK_COLORS[Math.floor(Math.random() * ROCK_COLORS.length)], dest: 'bed' });
+            }
+            tone(140, 0.25, 'triangle', 0.08, 90);
+        }
+
+        function puff(x, y) {
+            for (let i = 0; i < 4; i++) dust.push({ x, y, vx: (Math.random() - .5) * 60 * s, vy: -Math.random() * 40 * s, life: 1, r: (6 + Math.random() * 8) * s });
+        }
+
+        function startBuilding() {
+            if (!buildQueue.length) buildQueue = [...BUILDINGS].sort(() => Math.random() - 0.5);
+            const [emoji, name] = buildQueue.pop();
+            building = { emoji, name, t: 0 };
+            say('Hooray! You built ' + name + '!');
+            [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.3, 'triangle', 0.18, null, i * 0.14));
+            const em = [emoji, '🎉', '⭐', '🪨', '✨'];
+            for (let i = 0; i < 26; i++) {
+                setTimeout(() => {
+                    const e = document.createElement('div');
+                    e.className = 'rain';
+                    e.textContent = em[Math.floor(Math.random() * em.length)];
+                    e.style.left = Math.random() * 95 + 'vw';
+                    e.style.animationDuration = (2 + Math.random() * 2) + 's';
+                    document.body.appendChild(e);
+                    setTimeout(() => e.remove(), 4200);
+                }, i * 70);
+            }
+        }
+
+        // ---------- Digger (excavator) ----------
+        function lerp(a, b, k) { return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k }; }
+        function bucketPos(p) {
+            const rest = { x: ex - 30 * s, y: ey - 70 * s };
+            const pile = { x: ex - 70 * s, y: ey + 15 * s };
+            const high = { x: ex + 40 * s, y: ey - 130 * s };
+            const over = { x: loadX, y: G - wr - 20 * s - BED_H() - 85 * s };
+            if (p < 0) return rest;
+            const keys = [[0, rest], [0.2, pile], [0.35, rest], [0.5, high], [0.6, over], [0.72, over], [1, rest]];
+            for (let i = 0; i < keys.length - 1; i++) {
+                const [p0, a] = keys[i], [p1, b] = keys[i + 1];
+                if (p <= p1) { const k = (p - p0) / (p1 - p0); return lerp(a, b, k * k * (3 - 2 * k)); }
+            }
+            return rest;
+        }
+
+        // ---------- Drawing ----------
+        function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+
+        function drawScene() {
+            const sky = ctx.createLinearGradient(0, 0, 0, G);
+            sky.addColorStop(0, '#6ec6ff'); sky.addColorStop(1, '#d7f0ff');
+            ctx.fillStyle = sky; ctx.fillRect(0, 0, W, G);
+            // sun
+            ctx.fillStyle = '#ffd23f';
+            ctx.beginPath(); ctx.arc(W * 0.85, H * 0.12, 40 * s, 0, Math.PI * 2); ctx.fill();
+            // clouds
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            clouds.forEach(c => {
+                const x = c.x * W, y = c.y * H, k = c.sz * 40 * s;
+                ctx.beginPath(); ctx.arc(x, y, k, 0, 7); ctx.arc(x + k, y + 8 * s, k * .8, 0, 7); ctx.arc(x - k, y + 8 * s, k * .7, 0, 7); ctx.fill();
+            });
+            // far hills with everything you've built
+            ctx.fillStyle = '#9ad46b';
+            ctx.beginPath(); ctx.moveTo(0, G);
+            for (let x = 0; x <= W; x += 20) ctx.lineTo(x, G - 60 * s - Math.sin(x / W * Math.PI * 2) * 20 * s);
+            ctx.lineTo(W, G); ctx.fill();
+            ctx.font = `${44 * s}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+            skyline.forEach((e, i) => {
+                const x = W * 0.38 + ((i * 0.13) % 0.55) * W;
+                ctx.fillText(e, x, G - 62 * s - Math.sin(x / W * Math.PI * 2) * 20 * s + 6 * s);
+            });
+            // ground
+            ctx.fillStyle = '#c8a26b'; ctx.fillRect(0, G, W, H - G);
+            ctx.fillStyle = '#b58d55'; ctx.fillRect(0, G, W, 8 * s);
+            // pit
+            const pl = pitC - pitW / 2;
+            ctx.fillStyle = '#5d4037';
+            ctx.beginPath(); ctx.moveTo(pl, G); ctx.lineTo(pl + 18 * s, G + pitD); ctx.lineTo(pl + pitW - 18 * s, G + pitD); ctx.lineTo(pl + pitW, G); ctx.fill();
+            if (pitFill > 0) {
+                const top = G + pitD * (1 - pitFill);
+                ctx.fillStyle = '#a1887f';
+                const inset = 18 * s * (1 - pitFill);
+                ctx.beginPath(); ctx.moveTo(pl + inset, top); ctx.lineTo(pl + 18 * s, G + pitD); ctx.lineTo(pl + pitW - 18 * s, G + pitD); ctx.lineTo(pl + pitW - inset, top); ctx.fill();
+                // pebbly texture
+                ctx.fillStyle = 'rgba(93,64,55,0.35)';
+                for (let i = 0; i < 18 * pitFill; i++) { ctx.beginPath(); ctx.arc(pl + 25 * s + ((i * 37) % (pitW - 50 * s)), top + 8 * s + ((i * 13) % Math.max(1, pitD * pitFill - 10 * s)), 4 * s, 0, 7); ctx.fill(); }
+            }
+            // cones around the pit
+            [pl - 22 * s, pl + pitW + 22 * s].forEach(x => {
+                ctx.fillStyle = '#ff7f11';
+                ctx.beginPath(); ctx.moveTo(x, G - 34 * s); ctx.lineTo(x - 12 * s, G); ctx.lineTo(x + 12 * s, G); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.fillRect(x - 7 * s, G - 20 * s, 14 * s, 5 * s);
+            });
+            // the digger's hill and dirt pile
+            ctx.fillStyle = '#a67c52';
+            ctx.beginPath(); ctx.moveTo(0, G); ctx.lineTo(0, ey + 15 * s); ctx.lineTo(ex + 70 * s, ey + 15 * s); ctx.lineTo(ex + 110 * s, G); ctx.fill();
+            ctx.fillStyle = '#8d6e63';
+            ctx.beginPath(); ctx.ellipse(ex - 70 * s, ey + 15 * s, 60 * s, 34 * s, 0, Math.PI, 0); ctx.fill();
+        }
+
+        function drawDigger() {
+            // tracks & body
+            ctx.fillStyle = '#333'; rr(ex - 45 * s, ey - 4 * s, 100 * s, 22 * s, 11 * s); ctx.fill();
+            ctx.fillStyle = '#666'; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(ex - 30 * s + i * 23 * s, ey + 7 * s, 7 * s, 0, 7); ctx.fill(); }
+            ctx.fillStyle = '#ffb703'; rr(ex - 40 * s, ey - 46 * s, 90 * s, 42 * s, 8 * s); ctx.fill();
+            ctx.fillStyle = '#fb8500'; rr(ex + 2 * s, ey - 82 * s, 44 * s, 40 * s, 6 * s); ctx.fill();
+            ctx.fillStyle = '#bde0fe'; rr(ex + 8 * s, ey - 76 * s, 32 * s, 22 * s, 4 * s); ctx.fill();
+            // arm: shoulder -> elbow -> bucket
+            const sh = { x: ex - 10 * s, y: ey - 50 * s };
+            const b = bucketPos(digger.phase);
+            const mid = { x: (sh.x + b.x) / 2, y: Math.min(sh.y, b.y) - 55 * s };
+            ctx.strokeStyle = '#fb8500'; ctx.lineCap = 'round'; ctx.lineWidth = 14 * s;
+            ctx.beginPath(); ctx.moveTo(sh.x, sh.y); ctx.lineTo(mid.x, mid.y); ctx.stroke();
+            ctx.lineWidth = 10 * s;
+            ctx.beginPath(); ctx.moveTo(mid.x, mid.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+            // bucket (tilts open when dumping)
+            const open = digger.phase > 0.58 && digger.phase < 0.74;
+            ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(open ? 1.9 : 0.2);
+            ctx.fillStyle = '#555';
+            ctx.beginPath(); ctx.moveTo(-18 * s, -6 * s); ctx.lineTo(18 * s, -6 * s); ctx.lineTo(14 * s, 16 * s); ctx.lineTo(-14 * s, 18 * s); ctx.closePath(); ctx.fill();
+            // dirt in the bucket between scooping and dumping
+            if (digger.phase > 0.2 && digger.phase < 0.62) { ctx.fillStyle = '#8d6e63'; ctx.beginPath(); ctx.ellipse(0, -6 * s, 17 * s, 9 * s, 0, Math.PI, 0); ctx.fill(); }
+            ctx.restore();
+        }
+
+        function drawTruck() {
+            const x = truck.x, y0 = G - wr;
+            // chassis
+            ctx.fillStyle = '#37474f'; rr(x + 0.04 * TL, y0 - 22 * s, 0.96 * TL, 18 * s, 6 * s); ctx.fill();
+            // cab (front = left)
+            ctx.fillStyle = '#e63946'; rr(x, y0 - 100 * s, 0.33 * TL, 82 * s, 12 * s); ctx.fill();
+            ctx.fillStyle = '#bde0fe'; rr(x + 0.04 * TL, y0 - 90 * s, 0.17 * TL, 34 * s, 6 * s); ctx.fill();
+            ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(x + 4 * s, y0 - 32 * s, 7 * s, 0, 7); ctx.fill(); // headlight
+            ctx.fillStyle = '#9d0208'; ctx.fillRect(x + 0.28 * TL, y0 - 100 * s, 0.05 * TL, 82 * s);
+            // bed (rotates about the rear pivot when dumping)
+            const p = bedPivot();
+            ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(truck.bedAngle);
+            for (let i = 0; i < truck.rocks; i++) {
+                const sl = rockSlot(i);
+                ctx.fillStyle = truck.colors[i] || ROCK_COLORS[0];
+                ctx.beginPath(); ctx.arc(sl.x, sl.y, 9 * s, 0, 7); ctx.fill();
+            }
+            ctx.fillStyle = '#ffb703';
+            ctx.beginPath(); ctx.moveTo(-BED_LEN(), -BED_H()); ctx.lineTo(0, -BED_H() - 6 * s); ctx.lineTo(0, 0); ctx.lineTo(-BED_LEN() + 12 * s, 0); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = '#c77c02'; ctx.lineWidth = 4 * s;
+            for (let k = 1; k < 4; k++) { const xx = -BED_LEN() + k * BED_LEN() / 4; ctx.beginPath(); ctx.moveTo(xx, -BED_H() + 6 * s); ctx.lineTo(xx, -4 * s); ctx.stroke(); }
+            ctx.restore();
+            // hydraulic ram while dumping
+            if (truck.bedAngle > 0.02) {
+                const top = bedToWorld(-BED_LEN() * 0.6, -4 * s);
+                ctx.strokeStyle = '#90a4ae'; ctx.lineWidth = 7 * s;
+                ctx.beginPath(); ctx.moveTo(x + 0.5 * TL, y0 - 22 * s); ctx.lineTo(top.x, top.y); ctx.stroke();
+            }
+            // wheels
+            [0.17, 0.62, 0.86].forEach(k => {
+                const wx = x + k * TL;
+                ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(wx, y0, wr, 0, 7); ctx.fill();
+                ctx.fillStyle = '#bbb'; ctx.beginPath(); ctx.arc(wx, y0, wr * 0.45, 0, 7); ctx.fill();
+                ctx.strokeStyle = '#777'; ctx.lineWidth = 3 * s;
+                for (let j = 0; j < 3; j++) { const a = truck.wheel + j * 2.09; ctx.beginPath(); ctx.moveTo(wx, y0); ctx.lineTo(wx + Math.cos(a) * wr * 0.45, y0 + Math.sin(a) * wr * 0.45); ctx.stroke(); }
+            });
+        }
+
+        function drawHintArrow() {
+            if (dumping || building || digger.phase >= 0 || Math.abs(truck.v) > 10) return;
+            const full = truck.rocks >= ROCKS_PER_LOAD;
+            const goRight = full || (truck.rocks > 0 && truck.x > (minX + maxX) / 2);
+            if (!full && atLoader()) return;
+            const bob = Math.sin(t * 5) * 8 * s;
+            const x = goRight ? pitC : loadX;
+            const y = G - 150 * s + bob - (goRight ? 0 : 40 * s);
+            ctx.font = `${50 * s}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText('⬇️', x, y);
+        }
+
+        function drawFalling() {
+            for (const r of falling) { ctx.fillStyle = r.color; ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, 7); ctx.fill(); }
+            for (const d of dust) { ctx.fillStyle = `rgba(200,170,130,${d.life * 0.6})`; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, 7); ctx.fill(); }
+        }
+
+        function drawBuilding() {
+            if (!building) return;
+            const k = Math.min(1, building.t / 0.6);
+            const grow = 1 + Math.sin(k * Math.PI) * 0.25;
+            ctx.save();
+            ctx.translate(pitC, G + 4 * s);
+            ctx.scale(k * grow, k * grow);
+            ctx.font = `${150 * s}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+            ctx.fillText(building.emoji, 0, 0);
+            ctx.restore();
+        }
+
+        function loop(ts) {
+            const dt = last ? Math.min((ts - last) / 1000, 0.05) : 0.016;
+            last = ts; t += dt;
+            if (playing) update(dt);
+            drawScene();
+            drawBuilding();
+            drawDigger();
+            drawTruck();
+            drawFalling();
+            if (playing) drawHintArrow();
+            requestAnimationFrame(loop);
+        }
+
+        // ---------- Input ----------
+        function onTruck(x, y) { return x > truck.x && x < truck.x + TL && y > G - wr - 110 * s && y < G + 4 * s; }
+        let pointerHeld = false;
+        canvas.addEventListener('pointerdown', (e) => {
+            if (!playing) return;
+            if (onTruck(e.clientX, e.clientY)) { honk(); return; }
+            pointerHeld = true;
+            canvas.setPointerCapture(e.pointerId);
+            targetX = e.clientX - TL / 2;
+        });
+        canvas.addEventListener('pointermove', (e) => { if (pointerHeld) targetX = e.clientX - TL / 2; });
+        canvas.addEventListener('pointerup', () => { pointerHeld = false; });
+        canvas.addEventListener('pointercancel', () => { pointerHeld = false; });
+
+        function holdButton(id, dir) {
+            const b = document.getElementById(id);
+            const down = (e) => { e.preventDefault(); holdDir = dir; b.classList.add('down'); };
+            const up = () => { if (holdDir === dir) holdDir = 0; b.classList.remove('down'); };
+            b.addEventListener('pointerdown', down);
+            b.addEventListener('pointerup', up);
+            b.addEventListener('pointerleave', up);
+            b.addEventListener('pointercancel', up);
+        }
+        holdButton('left-btn', -1);
+        holdButton('right-btn', 1);
+        document.getElementById('horn-btn').addEventListener('click', honk);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') keyDir = -1;
+            else if (e.key === 'ArrowRight' || e.key === 'd') keyDir = 1;
+            else if (e.key === ' ' || e.key === 'h') { honk(); e.preventDefault(); }
+        });
+        document.addEventListener('keyup', (e) => {
+            if ((e.key === 'ArrowLeft' || e.key === 'a') && keyDir === -1) keyDir = 0;
+            if ((e.key === 'ArrowRight' || e.key === 'd') && keyDir === 1) keyDir = 0;
+        });
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('start').classList.add('hidden');
+            honk(); // also unlocks audio on iOS
+            playing = true;
+            say('Drive to the digger!');
+        });
+
+        // Menu
+        document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
+        document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
+
+        window.addEventListener('resize', resize);
+        resize();
+        requestAnimationFrame(loop);
+    </script>
+    <script src="games.js"></script>
+</body>
+
+</html>
