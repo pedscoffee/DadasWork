@@ -95,7 +95,7 @@ const ding = () => { tone(988, .12); tone(1319, .2, 'triangle', .18, null, .08);
 const fanfare = () => [523, 659, 784, 1046, 784, 1046].forEach((f, i) => tone(f, .3, 'triangle', .18, null, i * .13));
 const spell = (w) => w.toUpperCase().split('').join(', ');
 // speech engines read "I" and "a" oddly on their own; give them a nudge
-const sayWord = (w) => w === 'a' ? 'ay' : w === 'I' ? 'eye' : w;
+const sayWord = (w) => w === 'a' ? 'A' : w;   // read as the letter name (recorded clip / voice says "ay")
 
 function resize() {
     const DPR = Math.min(devicePixelRatio || 1, 2);
