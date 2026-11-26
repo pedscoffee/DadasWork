@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>🐕 Fetch with Sully</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+        html, body { width: 100%; height: 100%; overflow: hidden; touch-action: none; position: fixed; background: #8fd3ff;
+            font-family: 'Arial Rounded MT Bold', 'Chalkboard SE', 'Comic Sans MS', sans-serif; }
+        canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+        .screen { position: fixed; inset: 0; z-index: 1500; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 18px; background: rgba(124, 179, 66, .92); text-align: center; padding: 20px; }
+        .screen.hidden { display: none; }
+        .screen h1 { font-size: clamp(40px, 9vw, 80px); color: #fff; text-shadow: 0 4px 0 #33691e; }
+        .screen p { font-size: clamp(18px, 3.5vw, 26px); color: #fff; text-shadow: 0 2px 0 #33691e; }
+        .big-btn { font: inherit; font-size: clamp(26px, 5vw, 38px); padding: 16px 52px; border-radius: 50px; border: 5px solid #fff;
+            background: linear-gradient(135deg, #ffb703, #fb8500); color: #fff; cursor: pointer; box-shadow: 0 8px 0 #b55d00; }
+        #speak { position: fixed; top: 12px; right: 12px; z-index: 20; width: 48px; height: 48px; border-radius: 50%; border: 2px solid rgba(255,255,255,.6);
+            background: rgba(0,0,0,.45); color: #fff; font-size: 22px; cursor: pointer; }
+        .rain { position: fixed; top: -60px; font-size: clamp(30px, 6vw, 56px); pointer-events: none; z-index: 1400; animation: fall linear forwards; }
+        @keyframes fall { to { transform: translateY(115vh) rotate(360deg); } }
+        #game-nav { position: fixed; top: 12px; left: 12px; z-index: 2000; }
+        #nav-toggle { background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.6); color: #fff; font-size: 24px; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; }
+        #nav-overlay { position: fixed; inset: 0; background: rgba(10,10,30,.95); z-index: 2001; display: flex; align-items: center; justify-content: center; transition: opacity .3s; }
+        #nav-overlay.hidden { opacity: 0; pointer-events: none; }
+        #nav-close { position: absolute; top: 24px; right: 24px; background: none; border: none; color: #fff; font-size: 40px; cursor: pointer; }
+        .nav-links { display: flex; flex-direction: column; gap: 12px; text-align: center; max-height: 85vh; overflow-y: auto; padding: 10px; }
+        .nav-links a { color: #fff; text-decoration: none; font-size: 22px; padding: 10px 30px; border-radius: 30px; background: rgba(255,255,255,.1); }
+    </style>
+</head>
+<body>
+    <canvas id="c"></canvas>
+    <button id="speak" aria-label="Say it again">🔊</button>
+    <div id="game-nav"><button id="nav-toggle" aria-label="Games">☰</button></div>
+    <div id="nav-overlay" class="hidden">
+        <button id="nav-close" aria-label="Close">✕</button>
+        <div class="nav-links"><!-- filled from games.js --></div>
+    </div>
+    <div id="start" class="screen">
+        <h1>🎾 Fetch with Sully!</h1>
+        <p>Tap where you want to throw the ball.</p>
+        <p>Sully will run and bring it back!</p>
+        <button class="big-btn" id="start-btn">Play Fetch!</button>
+    </div>
+
+<script>
+// =============================================================
+// FETCH WITH SULLY
+// Sully: a white, curly, medium-sized poodle-retriever mix.
+//  - Tap anywhere on the field: the ball flies there.
+//  - Sully runs, leaps to catch it if he can, and brings it back.
+//  - Every other throw has a little challenge on the field:
+//      near / far tree, a numbered flag, or "the one that starts
+//      with B, like bark". Any throw still gets fetched; the
+//      right one gets a star and a happy spin.
+//  - Every 10 fetches Sully gets a treat and the park changes.
+//  - Tap Sully when he's sitting to make him bark and spin.
+// =============================================================
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, u, GY, PX, HOME, t = 0, last = 0;
+
+// ---------- sound + voice ----------
+let AC = null;
+function tone(f, d = .15, type = 'triangle', v = .18, slideTo, delay = 0) {
+    try {
+        AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+        if (AC.state === 'suspended') AC.resume();
+        const n = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+        o.type = type; o.frequency.setValueAtTime(f, n);
+        if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, n + d);
+        g.gain.setValueAtTime(v, n); g.gain.exponentialRampToValueAtTime(.001, n + d);
+        o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d);
+    } catch (e) { }
+}
+function say(text) {
+    try {
+        if (!('speechSynthesis' in window)) return;
+        speechSynthesis.cancel();
+        const m = new SpeechSynthesisUtterance(text);
+        m.rate = .85; m.pitch = 1.15;
+        speechSynthesis.speak(m);
+    } catch (e) { }
+}
+const bark = (delay = 0) => { tone(420, .09, 'sawtooth', .16, 260, delay); tone(300, .12, 'square', .07, 180, delay + .02); };
+const whoosh = () => tone(300, .35, 'sine', .08, 900);
+const boing = () => tone(500, .18, 'sine', .14, 250);
+const ding = () => { tone(988, .12); tone(1319, .2, 'triangle', .18, null, .08); };
+const fanfare = () => [523, 659, 784, 1046, 784, 1046].forEach((f, i) => tone(f, .3, 'triangle', .18, null, i * .13));
+const NUM = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+
+// ---------- layout ----------
+function resize() {
+    const DPR = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    u = Math.max(.5, Math.min(W / 1000, H / 600));
+    GY = H * .8;
+    PX = Math.max(50, 70 * u);       // the kid who throws
+    HOME = PX + 95 * u;               // where Sully sits
+    layoutField();
+}
+addEventListener('resize', resize);
+
+// ---------- park themes ----------
+const PARKS = [
+    { sky: ['#6ec6ff', '#d7f0ff'], grass: ['#7cb342', '#689f38'], sun: '#ffd23f', name: 'sunny' },
+    { sky: ['#ff9a5a', '#ffd6a5'], grass: ['#8bc34a', '#6b9b37'], sun: '#ff6b35', name: 'sunset' },
+    { sky: ['#a7d8ff', '#f0f8ff'], grass: ['#f5f9ff', '#dbe7f3'], sun: '#fff3b0', name: 'snowy' }
+];
+let park = 0;
+
+// ---------- challenges ----------
+const LETTERS = [
+    { L: 'B', like: 'bark', items: [['🐻', 'bear'], ['🍌', 'banana'], ['🚌', 'bus']] },
+    { L: 'S', like: 'Sully', items: [['☀️', 'sun'], ['🧦', 'sock'], ['🐍', 'snake']] },
+    { L: 'D', like: 'dog', items: [['🦆', 'duck'], ['🍩', 'donut'], ['🥁', 'drum']] },
+    { L: 'T', like: 'tail', items: [['🐢', 'turtle'], ['🚂', 'train'], ['🐯', 'tiger']] },
+    { L: 'P', like: 'puppy', items: [['🐷', 'pig'], ['🍕', 'pizza'], ['🐧', 'penguin']] },
+    { L: 'F', like: 'fetch', items: [['🐟', 'fish'], ['🐸', 'frog'], ['🦊', 'fox']] },
+    { L: 'W', like: 'woof', items: [['🍉', 'watermelon'], ['🐋', 'whale'], ['🪱', 'worm']] },
+    { L: 'M', like: 'muddy', items: [['🌙', 'moon'], ['🐒', 'monkey'], ['🍄', 'mushroom']] },
+    { L: 'C', like: 'cuddle', items: [['🐱', 'cat'], ['🥕', 'carrot'], ['🚗', 'car']] },
+    { L: 'L', like: 'lick', items: [['🦁', 'lion'], ['🍋', 'lemon'], ['🪜', 'ladder']] },
+    { L: 'R', like: 'run', items: [['🌈', 'rainbow'], ['🚀', 'rocket'], ['🤖', 'robot']] },
+    { L: 'H', like: 'happy', items: [['🎩', 'hat'], ['🐴', 'horse'], ['🍯', 'honey']] }
+];
+const CYCLE = ['free', 'farnear', 'free', 'number', 'free', 'letter'];
+let cycleI = 0, challenge = { kind: 'free' }, targets = [];
+const pickOne = (a) => a[Math.floor(Math.random() * a.length)];
+
+function fieldX(f) { const L = HOME + 130 * u, R = W - 60 * u; return L + (R - L) * f; }
+function layoutField() {
+    // re-place targets for the current challenge after a resize
+    targets.forEach(tg => tg.x = fieldX(tg.f));
+}
+function newChallenge() {
+    const kind = CYCLE[cycleI++ % CYCLE.length];
+    targets = [];
+    challenge = { kind };
+    if (kind === 'farnear') {
+        challenge.want = Math.random() < .5 ? 'far' : 'near';
+        targets = [{ f: .12, kind: 'tree', id: 'near' }, { f: .95, kind: 'tree', id: 'far' }];
+        challenge.say = `Throw it to the ${challenge.want.toUpperCase()} tree!`;
+    } else if (kind === 'number') {
+        const nums = [];
+        while (nums.length < 3) { const n = 1 + Math.floor(Math.random() * 10); if (!nums.includes(n)) nums.push(n); }
+        challenge.want = pickOne(nums);
+        targets = nums.map((n, i) => ({ f: [.15, .55, .95][i], kind: 'flag', id: n }));
+        challenge.say = `Throw it to number ${NUM[challenge.want]}!`;
+    } else if (kind === 'letter') {
+        const set = pickOne(LETTERS);
+        const right = pickOne(set.items);
+        const others = LETTERS.filter(x => x !== set).sort(() => Math.random() - .5).slice(0, 2).map(x => pickOne(x.items));
+        const all = [right, ...others].sort(() => Math.random() - .5);
+        challenge.want = right[1]; challenge.letter = set;
+        targets = all.map((it, i) => ({ f: [.15, .55, .95][i], kind: 'item', id: it[1], emoji: it[0] }));
+        challenge.say = `Which one starts with ${set.L}? ${set.L}, like ${set.like}! Throw it there!`;
+    } else {
+        challenge.say = pickOne(['Throw the ball for Sully!', 'Sully wants the ball! Throw it!', 'Ready? Throw it far!']);
+    }
+    layoutField();
+}
+// which target (if any) a throw landed on
+function judge(x) {
+    if (!targets.length) return null;
+    let best = null, bd = 1e9;
+    targets.forEach(tg => { const d = Math.abs(tg.x - x); if (d < bd) { bd = d; best = tg; } });
+    return bd < 95 * u ? best : null;
+}
+
+// ---------- state ----------
+let started = false;
+let fetches = 0, stars = 0;
+const ball = { x: 0, y: 0, vx: 0, vy: 0, state: 'hand', spin: 0, bounces: 0 };  // hand | air | ground | mouth | toss
+let throwX = 0, armT = 1;
+const sully = { x: 0, y: 0, vy: 0, face: 1, state: 'sit', legT: 0, wag: 0, barkT: 0, spinT: 0, holding: null, grabT: 0, look: 0 };
+let msg = null, particles = [], hearts = [], party = 0, landedOn = null;
+
+function placeHome() {
+    sully.x = HOME; sully.y = 0; sully.state = 'sit'; sully.face = 1;
+    ball.state = 'hand';
+}
+
+// ---------- throwing ----------
+function throwTo(x) {
+    if (ball.state !== 'hand' || sully.state !== 'sit' || party) return;
+    const Lx = Math.max(HOME + 70 * u, Math.min(W - 30 * u, x));
+    const x0 = PX + 22 * u, y0 = GY - 78 * u, g = 1600 * u;
+    const T = .75 + .55 * (Lx - x0) / W;
+    ball.x = x0; ball.y = y0; ball.vx = (Lx - x0) / T;
+    ball.vy = (GY - 9 * u - y0 - .5 * g * T * T) / T;
+    ball.state = 'air'; ball.bounces = 0;
+    throwX = Lx; armT = 0;
+    landedOn = judge(Lx);
+    whoosh();
+    // Sully takes off!
+    sully.state = 'chase'; sully.face = 1; bark(.15);
+}
+function feedback() {
+    const c = challenge, tg = landedOn;
+    if (c.kind === 'free') return { good: false, text: '' };
+    let good = false, text = '';
+    if (c.kind === 'farnear') {
+        const which = tg ? tg.id : (Math.abs(throwX - targets[0].x) < Math.abs(throwX - targets[1].x) ? 'near' : 'far');
+        good = which === c.want;
+        text = good ? `Yes! The ${c.want} tree!` : `That was the ${which} tree!`;
+    } else if (c.kind === 'number') {
+        good = tg && tg.id === c.want;
+        text = good ? `Yes! Number ${NUM[c.want]}!` : tg ? `That was number ${NUM[tg.id]}!` : `Wheee!`;
+    } else if (c.kind === 'letter') {
+        good = tg && tg.id === c.want;
+        text = good ? `Yes! ${c.want} starts with ${c.letter.L}!` : tg ? `Sully got the ${tg.id}! ${c.want} starts with ${c.letter.L}.` : `Wheee! ${c.want} starts with ${c.letter.L}.`;
+    }
+    return { good, text };
+}
+
+// ---------- input ----------
+canvas.addEventListener('pointerdown', (e) => {
+    if (!started) return;
+    const x = e.clientX, y = e.clientY;
+    // tap Sully while he's sitting: bark + spin
+    if (sully.state === 'sit' && Math.abs(x - sully.x) < 70 * u && y > GY - 130 * u && y < GY + 20 * u) {
+        sully.spinT = .8; sully.barkT = .3; bark(); bark(.25);
+        hearts.push({ x: sully.x, y: GY - 120 * u, life: 1.2 });
+        return;
+    }
+    if (ball.state === 'hand' && sully.state === 'sit') throwTo(x);
+});
+document.getElementById('start-btn').addEventListener('click', () => {
+    document.getElementById('start').classList.add('hidden');
+    started = true;
+    newChallenge();
+    bark(); bark(.25);
+    say('Hi! I\'m Sully! ' + challenge.say);
+});
+document.getElementById('speak').addEventListener('click', () => say(challenge.say));
+
+// ---------- update ----------
+const SPEED = () => 560 * u;
+function runToward(tx, dt, speed = SPEED()) {
+    const d = tx - sully.x;
+    sully.face = d >= 0 ? 1 : -1;
+    const step = speed * dt;
+    sully.legT += dt * 14;
+    if (Math.abs(d) <= step) { sully.x = tx; return true; }
+    sully.x += Math.sign(d) * step;
+    return false;
+}
+function update(dt) {
+    sully.wag += dt * (sully.state === 'sit' ? 10 : 16);
+    sully.barkT = Math.max(0, sully.barkT - dt);
+    sully.spinT = Math.max(0, sully.spinT - dt);
+    armT = Math.min(1, armT + dt * 3);
+    const g = 1600 * u;
+
+    // ball
+    if (ball.state === 'air' || ball.state === 'ground') {
+        ball.vy += g * dt; ball.x += ball.vx * dt; ball.y += ball.vy * dt; ball.spin += ball.vx * dt * .05;
+        if (ball.y >= GY - 9 * u) {
+            ball.y = GY - 9 * u;
+            if (ball.state === 'air') boing();
+            ball.state = 'ground';
+            if (Math.abs(ball.vy) > 120 * u && ball.bounces < 3) { ball.vy *= -.42; ball.vx *= .6; ball.bounces++; }
+            else { ball.vy = 0; ball.vx *= Math.pow(.05, dt); }
+        }
+        if (ball.x > W - 12 * u) { ball.x = W - 12 * u; ball.vx = -Math.abs(ball.vx) * .3; }
+    }
+
+    // Sully
+    if (sully.state === 'chase') {
+        if (ball.state === 'air') {
+            // run to where the ball will land; leap when it's close overhead
+            const tl = (() => { // time until ball reaches the ground
+                const a = .5 * g, b = ball.vy, c = ball.y - (GY - 9 * u);
+                return (-b + Math.sqrt(Math.max(0, b * b - 4 * a * c))) / (2 * a);
+            })();
+            const landX = ball.x + ball.vx * tl;
+            const arrived = runToward(landX - 30 * u, dt);
+            if (arrived || Math.abs(sully.x - (landX - 30 * u)) < 40 * u) {
+                if (tl < .38 && sully.y === 0) { sully.state = 'jump'; sully.vy = -900 * u; bark(); }
+                else { sully.look = 1; sully.face = ball.x >= sully.x ? 1 : -1; }
+            }
+        } else if (ball.state === 'ground') {
+            if (runToward(ball.x - 34 * u, dt)) { sully.state = 'grab'; sully.grabT = .3; }
+        }
+    } else if (sully.state === 'jump') {
+        sully.vy += 2600 * u * dt; sully.y += sully.vy * dt;
+        sully.x += sully.face * 90 * u * dt;
+        // mouth position vs ball
+        const mx = sully.x + sully.face * 46 * u, my = GY + sully.y - 70 * u;
+        if (ball.state === 'air' && Math.hypot(ball.x - mx, ball.y - my) < 50 * u) {
+            ball.state = 'mouth'; sully.holding = landedOn && landedOn.kind === 'item' ? landedOn.emoji : 'ball';
+            ding(); msgAt('Nice catch! 🎉', sully.x, GY - 170 * u, '#fff');
+        }
+        if (sully.y >= 0) {
+            sully.y = 0; sully.vy = 0;
+            if (ball.state === 'mouth') sully.state = 'return';
+            else sully.state = 'chase';
+        }
+    } else if (sully.state === 'grab') {
+        sully.grabT -= dt;
+        if (sully.grabT <= 0) {
+            ball.state = 'mouth';
+            sully.holding = landedOn && landedOn.kind === 'item' ? landedOn.emoji : 'ball';
+            sully.state = 'return';
+        }
+    } else if (sully.state === 'return') {
+        if (runToward(HOME, dt, SPEED() * .8)) dropBall();
+    }
+    if (ball.state === 'mouth') {
+        ball.x = sully.x + sully.face * 50 * u; ball.y = GY + sully.y - 62 * u;
+    }
+    if (ball.state === 'toss') {
+        // ball hops from Sully back to the kid's hand
+        ball.vy += g * dt; ball.x += ball.vx * dt; ball.y += ball.vy * dt;
+        if (ball.x <= PX + 22 * u) ball.state = 'hand';
+    }
+
+    if (party > 0) {
+        party -= dt;
+        if (party <= 0) { party = 0; park = (park + 1) % PARKS.length; newChallenge(); say(`Look, a ${PARKS[park].name} park! ` + challenge.say); }
+    }
+
+    if (msg) { msg.life -= dt; msg.y -= 18 * dt; if (msg.life <= 0) msg = null; }
+    hearts.forEach(h => { h.life -= dt; h.y -= 50 * dt; }); hearts = hearts.filter(h => h.life > 0);
+    particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 500 * dt; p.life -= dt; });
+    particles = particles.filter(p => p.life > 0);
+}
+function msgAt(text, x, y, color) { msg = { text, x: Math.max(120, Math.min(W - 120, x)), y, color, life: 1.8 }; }
+
+function dropBall() {
+    sully.state = 'sit'; sully.face = 1; sully.look = 0;
+    const brought = sully.holding; sully.holding = null;
+    fetches++;
+    // the ball hops back to the kid
+    ball.state = 'toss'; ball.x = sully.x - 10 * u; ball.y = GY - 50 * u;
+    ball.vx = (PX + 22 * u - ball.x) / .5; ball.vy = -500 * u;
+    const fb = feedback();
+    if (fb.good) { stars++; ding(); sully.spinT = .8; burst(sully.x, GY - 90 * u); }
+    const count = `${NUM[fetches] || fetches}!`;
+    hearts.push({ x: sully.x, y: GY - 120 * u, life: 1.2 });
+    if (fetches >= 10) {
+        say(`Ten fetches! Good boy, Sully! Here's a treat!`);
+        party = 4.5; fetches = 0; fanfare();
+        rain(['🦴', '🐾', '⭐', '❤️', '🐕']);
+        targets = [];
+        return;
+    }
+    const brag = brought && brought !== 'ball' ? `Sully brought back the ball, not the ${landedOn.id}! ` : '';
+    const nextC = () => { newChallenge(); return challenge.say; };
+    say(`${count} ${fb.text} ${fb.text ? '' : brag}${nextC()}`);
+    if (fb.text) msgAt(fb.good ? '⭐ ' + fb.text : fb.text, W / 2, H * .3, fb.good ? '#FFD93D' : '#fff');
+}
+function burst(x, y) { for (let i = 0; i < 18; i++) particles.push({ x, y, vx: (Math.random() - .5) * 320, vy: -Math.random() * 320, life: 1, c: '#FFD93D' }); }
+function rain(emojis) {
+    for (let i = 0; i < 34; i++) setTimeout(() => {
+        const e = document.createElement('div');
+        e.className = 'rain'; e.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        e.style.left = Math.random() * 95 + 'vw'; e.style.animationDuration = (2 + Math.random() * 2) + 's';
+        document.body.appendChild(e); setTimeout(() => e.remove(), 4200);
+    }, i * 70);
+}
+
+// ---------- drawing ----------
+function emoji(e, x, y, size, base = 'middle') { ctx.font = `${size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = base; ctx.fillText(e, x, y); }
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+
+function drawPark() {
+    const P = PARKS[park];
+    const g = ctx.createLinearGradient(0, 0, 0, GY);
+    g.addColorStop(0, P.sky[0]); g.addColorStop(1, P.sky[1]);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, GY);
+    ctx.fillStyle = P.sun; ctx.beginPath(); ctx.arc(W * .82, H * .16, 38 * u, 0, 7); ctx.fill();
+    // far hills
+    ctx.fillStyle = P.grass[1];
+    ctx.beginPath(); ctx.moveTo(0, GY);
+    for (let x = 0; x <= W; x += 16) ctx.lineTo(x, GY - 60 * u - Math.sin(x / W * 5 + 1) * 20 * u);
+    ctx.lineTo(W, GY); ctx.fill();
+    // fence
+    ctx.fillStyle = P.name === 'snowy' ? '#c9b8a6' : '#e8d5b7';
+    for (let x = 10; x < W; x += 34 * u) ctx.fillRect(x, GY - 52 * u, 10 * u, 52 * u);
+    ctx.fillRect(0, GY - 40 * u, W, 7 * u); ctx.fillRect(0, GY - 22 * u, W, 7 * u);
+    ctx.fillStyle = P.grass[0]; ctx.fillRect(0, GY, W, H - GY);
+    if (P.name === 'snowy') {
+        ctx.fillStyle = 'rgba(255,255,255,.85)';
+        for (let i = 0; i < 40; i++) { const sx = (i * 97 + t * 30) % W, sy = (i * 53 + t * 40) % GY; ctx.beginPath(); ctx.arc(sx, sy, 2.5 * u, 0, 7); ctx.fill(); }
+    }
+}
+
+function drawTargets() {
+    targets.forEach(tg => {
+        const glow = tg.id === challenge.want;
+        if (tg.kind === 'tree') {
+            const big = tg.id === 'far' ? 1 : 1.05;
+            ctx.fillStyle = '#795548'; ctx.fillRect(tg.x - 9 * u, GY - 90 * u * big, 18 * u, 90 * u * big);
+            ctx.fillStyle = PARKS[park].name === 'snowy' ? '#e3f2fd' : '#43a047';
+            [[0, -130], [-34, -100], [34, -100], [0, -95]].forEach(([dx, dy]) => { ctx.beginPath(); ctx.arc(tg.x + dx * u, GY + dy * u * big, 42 * u, 0, 7); ctx.fill(); });
+            ctx.fillStyle = '#fff'; rr(tg.x - 40 * u, GY - 34 * u, 80 * u, 30 * u, 8 * u); ctx.fill();
+            ctx.fillStyle = '#33691e'; ctx.font = `bold ${20 * u}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(tg.id.toUpperCase(), tg.x, GY - 19 * u);
+        } else if (tg.kind === 'flag') {
+            ctx.fillStyle = '#5d4037'; ctx.fillRect(tg.x - 3 * u, GY - 110 * u, 6 * u, 110 * u);
+            ctx.fillStyle = '#fff'; rr(tg.x - 40 * u, GY - 120 * u, 80 * u, 66 * u, 12 * u); ctx.fill();
+            ctx.strokeStyle = '#e63946'; ctx.lineWidth = 5 * u; ctx.stroke();
+            ctx.fillStyle = '#e63946'; ctx.font = `bold ${46 * u}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(tg.id, tg.x, GY - 86 * u);
+        } else if (tg.kind === 'item') {
+            ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.ellipse(tg.x, GY - 2 * u, 46 * u, 12 * u, 0, 0, 7); ctx.fill();
+            emoji(tg.emoji, tg.x, GY - 4 * u + Math.sin(t * 3 + tg.f * 9) * 4 * u, 72 * u, 'bottom');
+        }
+    });
+    // letter sign by the kid
+    if (challenge.kind === 'letter') {
+        const L = challenge.letter.L;
+        ctx.fillStyle = '#fff'; rr(PX - 40 * u, GY - 250 * u, 120 * u, 80 * u, 14 * u); ctx.fill();
+        ctx.strokeStyle = '#1e88e5'; ctx.lineWidth = 5 * u; ctx.stroke();
+        ctx.fillStyle = '#1e88e5'; ctx.font = `bold ${50 * u}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(`${L} ${L.toLowerCase()}`, PX + 20 * u, GY - 210 * u);
+    }
+}
+
+// the kid who throws
+function drawKid() {
+    const x = PX, y = GY;
+    ctx.fillStyle = '#1565c0'; rr(x - 13 * u, y - 40 * u, 11 * u, 40 * u, 5 * u); ctx.fill(); rr(x + 2 * u, y - 40 * u, 11 * u, 40 * u, 5 * u); ctx.fill();
+    ctx.fillStyle = '#ef5350'; rr(x - 20 * u, y - 86 * u, 40 * u, 50 * u, 14 * u); ctx.fill();
+    ctx.fillStyle = '#f1c27d'; ctx.beginPath(); ctx.arc(x, y - 104 * u, 21 * u, 0, 7); ctx.fill();
+    ctx.fillStyle = '#6d4c41'; ctx.beginPath(); ctx.arc(x, y - 110 * u, 21 * u, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(x + 8 * u, y - 104 * u, 2.6 * u, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 2 * u; ctx.beginPath(); ctx.arc(x + 6 * u, y - 98 * u, 6 * u, .2, Math.PI - .6); ctx.stroke();
+    // throwing arm
+    const a = armT < 1 ? -2.4 + armT * 2.6 : (ball.state === 'hand' ? -.9 : .3);
+    ctx.strokeStyle = '#f1c27d'; ctx.lineWidth = 10 * u; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x + 10 * u, y - 78 * u); ctx.lineTo(x + 10 * u + Math.cos(a) * 30 * u, y - 78 * u + Math.sin(a) * 30 * u); ctx.stroke();
+    if (ball.state === 'hand') { ball.x = x + 10 * u + Math.cos(a) * 34 * u; ball.y = y - 78 * u + Math.sin(a) * 34 * u; }
+}
+
+function drawBall() {
+    if (ball.state === 'mouth' && sully.holding && sully.holding !== 'ball') {
+        emoji(sully.holding, ball.x, ball.y, 40 * u);
+        return;
+    }
+    if (ball.state === 'air' || ball.state === 'ground') {
+        // shadow
+        ctx.fillStyle = 'rgba(0,0,0,.15)';
+        ctx.beginPath(); ctx.ellipse(ball.x, GY - 1, 10 * u, 3 * u, 0, 0, 7); ctx.fill();
+    }
+    ctx.save(); ctx.translate(ball.x, ball.y); ctx.rotate(ball.spin);
+    ctx.fillStyle = '#c6e03a'; ctx.beginPath(); ctx.arc(0, 0, 10 * u, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * u;
+    ctx.beginPath(); ctx.arc(-9 * u, 0, 8 * u, -1, 1); ctx.stroke();
+    ctx.beginPath(); ctx.arc(9 * u, 0, 8 * u, Math.PI - 1, Math.PI + 1); ctx.stroke();
+    ctx.restore();
+}
+
+// ---- Sully: white curly poodle-retriever mix, medium size ----
+const FUR = '#fbfaf5', CURL = '#e6e0d2', EAR = '#f1ebdd';
+function fluff(x, y, r) {
+    ctx.fillStyle = FUR; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    ctx.strokeStyle = CURL; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x, y, r * .55, .6, 2.6); ctx.stroke();
+}
+function drawSully() {
+    const s = u * 1.05;
+    const x = sully.x, y = GY + sully.y;
+    ctx.save();
+    ctx.translate(x, y);
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,.14)';
+    ctx.beginPath(); ctx.ellipse(0, -sully.y, 55 * s * (1 + sully.y / 600), 8 * s, 0, 0, 7); ctx.fill();
+    if (party > 0) ctx.scale(Math.cos(t * 9) >= 0 ? 1 : -1, 1);          // happy dance: hop side to side
+    else if (sully.spinT > 0) { const c = Math.cos((1 - sully.spinT / .8) * Math.PI * 4); ctx.scale(Math.abs(c) < .25 ? Math.sign(c || 1) * .25 : c, 1); }
+    ctx.scale(sully.face * s, s);
+    const sitting = sully.state === 'sit';
+    const running = ['chase', 'return'].includes(sully.state) && !(sully.look && sully.state === 'chase' && ball.state === 'air');
+    const leap = sully.state === 'jump';
+    const lt = sully.legT;
+    ctx.lineCap = 'round';
+
+    if (sitting) {
+        // tail plume, wagging along the ground
+        const w = Math.sin(sully.wag) * .5;
+        for (let i = 0; i < 5; i++) fluff(-44 - i * 8 * Math.cos(w), -14 - i * 6 + Math.sin(w) * i * 5, 9 - i);
+        // haunch + back legs
+        fluff(-24, -24, 24); fluff(-10, -12, 14);
+        ctx.fillStyle = FUR; ctx.beginPath(); ctx.ellipse(-4, -6, 22, 8, 0, 0, 7); ctx.fill();
+        // body upright
+        fluff(0, -46, 24); fluff(12, -62, 22); fluff(-8, -60, 18);
+        // front legs
+        ctx.strokeStyle = FUR; ctx.lineWidth = 12;
+        ctx.beginPath(); ctx.moveTo(18, -50); ctx.lineTo(20, -4); ctx.moveTo(30, -50); ctx.lineTo(33, -4); ctx.stroke();
+        fluff(21, -6, 7); fluff(34, -6, 7);
+        drawHead(26, -98, 0);
+    } else {
+        const tilt = leap ? -.35 : running ? Math.sin(lt) * .04 : 0;
+        ctx.rotate(tilt);
+        // legs
+        const swing = running ? Math.sin(lt) * .55 : leap ? .9 : 0;
+        ctx.strokeStyle = FUR; ctx.lineWidth = 12;
+        const leg = (hx, a, len) => { ctx.beginPath(); ctx.moveTo(hx, -44); const fx = hx + Math.sin(a) * len, fy = -44 + Math.cos(a) * len; ctx.lineTo(fx, fy); ctx.stroke(); fluff(fx, fy - 2, 7); };
+        leg(-30, swing, 42); leg(30, -swing, 42);
+        // tail plume up and wagging
+        const w = Math.sin(sully.wag) * .35;
+        for (let i = 0; i < 6; i++) fluff(-50 - i * 6 + Math.sin(w) * i * 2, -58 - i * 8 * Math.cos(w), 10 - i);
+        // body: a row of curls
+        for (let i = 0; i < 6; i++) fluff(-36 + i * 14, -58 + Math.sin(i) * 2, 20);
+        fluff(30, -48, 18); fluff(-30, -46, 16);
+        ctx.strokeStyle = FUR; ctx.lineWidth = 12;
+        leg(-22, -swing, 42); leg(38, swing, 42);
+        drawHead(52, -86, leap ? -.2 : sully.look && ball.state === 'air' ? -.5 : 0);
+    }
+    ctx.restore();
+}
+function drawHead(hx, hy, tiltUp) {
+    ctx.save(); ctx.translate(hx, hy); ctx.rotate(tiltUp);
+    // neck fluff
+    fluff(-10, 14, 16);
+    // head + curly topknot
+    fluff(0, 0, 21); fluff(-6, -18, 11); fluff(6, -20, 10); fluff(-14, -10, 9);
+    // snout
+    ctx.fillStyle = FUR; ctx.beginPath(); ctx.ellipse(22, 6, 17, 11, .05, 0, 7); ctx.fill();
+    ctx.fillStyle = '#1b1b1b'; ctx.beginPath(); ctx.ellipse(37, 3, 6, 5, 0, 0, 7); ctx.fill();
+    // mouth / tongue
+    const open = sully.barkT > 0 || (sully.holding === null && ['chase', 'return'].includes(sully.state));
+    if (open && !sully.holding) {
+        ctx.fillStyle = '#7a2e2e'; ctx.beginPath(); ctx.ellipse(24, 15, 10, 5, .1, 0, 7); ctx.fill();
+        ctx.fillStyle = '#ff7b9c'; ctx.beginPath(); ctx.ellipse(22, 19, 6, 6, 0, 0, Math.PI); ctx.fill();
+    } else {
+        ctx.strokeStyle = '#9e9e9e'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(28, 12, 6, .3, 2); ctx.stroke();
+    }
+    // eye
+    ctx.fillStyle = '#1b1b1b'; ctx.beginPath(); ctx.arc(8, -3, 3.6, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(9.2, -4.2, 1.2, 0, 7); ctx.fill();
+    // long floppy curly ear
+    const flop = Math.sin(sully.legT) * .15 + (sully.state === 'jump' ? -.4 : 0);
+    ctx.save(); ctx.translate(-8, -2); ctx.rotate(.15 + flop);
+    ctx.fillStyle = EAR;
+    for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(0, 6 + i * 8, 10 - i * .8, 0, 7); ctx.fill(); }
+    ctx.strokeStyle = CURL; ctx.lineWidth = 1.4;
+    for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(0, 6 + i * 8, 5, .5, 2.5); ctx.stroke(); }
+    ctx.restore();
+    ctx.restore();
+}
+
+function drawHud() {
+    // ten frame of fetches
+    const cell = 30 * u, gap = 5 * u, w = 5 * cell + 6 * gap, h = 2 * cell + 3 * gap;
+    const bx = W / 2 - w / 2, by = 14 * u;
+    ctx.fillStyle = 'rgba(255,255,255,.9)'; rr(bx, by, w, h, 10 * u); ctx.fill();
+    for (let i = 0; i < 10; i++) {
+        const cx = bx + gap + (i % 5) * (cell + gap), cy = by + gap + Math.floor(i / 5) * (cell + gap);
+        ctx.strokeStyle = '#a5d6a7'; ctx.lineWidth = 2 * u; ctx.strokeRect(cx, cy, cell, cell);
+        if (i < fetches) { ctx.fillStyle = '#c6e03a'; ctx.beginPath(); ctx.arc(cx + cell / 2, cy + cell / 2, cell * .34, 0, 7); ctx.fill();
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5 * u; ctx.beginPath(); ctx.arc(cx + cell * .2, cy + cell / 2, cell * .28, -1, 1); ctx.stroke(); }
+    }
+    ctx.fillStyle = '#fff'; ctx.font = `bold ${28 * u}px sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 4 * u; ctx.strokeStyle = 'rgba(0,0,0,.35)';
+    ctx.strokeText(`⭐ ${stars}`, bx + w + 16 * u, by + h / 2); ctx.fillText(`⭐ ${stars}`, bx + w + 16 * u, by + h / 2);
+}
+
+function draw() {
+    drawPark();
+    drawTargets();
+    drawKid();
+    drawSully();
+    drawBall();
+    if (party > 0) emoji('🦴', sully.x + 40 * u, GY - 150 * u + Math.sin(t * 6) * 10 * u, 60 * u);
+    hearts.forEach(h => { ctx.globalAlpha = Math.max(0, h.life); emoji('❤️', h.x, h.y, 30 * u); });
+    ctx.globalAlpha = 1;
+    particles.forEach(p => { ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, 5 * u, 0, 7); ctx.fill(); });
+    ctx.globalAlpha = 1;
+    if (started) drawHud();
+    // waiting-to-throw hint
+    if (started && ball.state === 'hand' && sully.state === 'sit' && !party && Math.sin(t * 3) > 0) {
+        const tg = targets.find(x => x.id === challenge.want);
+        const hx = tg ? tg.x : W * .7;
+        emoji('👆', hx, GY + (H - GY) * .45, 44 * u);
+    }
+    if (msg) {
+        ctx.globalAlpha = Math.min(1, msg.life);
+        ctx.font = `bold ${34 * u}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 6 * u; ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.strokeText(msg.text, msg.x, msg.y);
+        ctx.fillStyle = msg.color; ctx.fillText(msg.text, msg.x, msg.y);
+        ctx.globalAlpha = 1;
+    }
+}
+
+function loop(ts) {
+    const dt = last ? Math.min((ts - last) / 1000, .05) : .016;
+    last = ts; t += dt;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+}
+resize();
+placeHome();
+requestAnimationFrame(loop);
+
+document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
+document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
+</script>
+<script src="games.js"></script>
+</body>
+</html>

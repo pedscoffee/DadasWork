@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>🏗️ Job Site</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+        html, body { width: 100%; height: 100%; overflow: hidden; touch-action: none; background: #8fd3ff;
+            font-family: 'Arial Rounded MT Bold', 'Chalkboard SE', 'Comic Sans MS', sans-serif; }
+        canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+        #title { position: fixed; top: 12px; left: 0; right: 0; text-align: center; z-index: 5; pointer-events: none;
+            font-size: clamp(22px, 5vw, 40px); color: #fff; text-shadow: 0 3px 0 #b5651d, 0 0 12px rgba(0,0,0,.25); padding: 0 70px; }
+        #machines { position: fixed; left: 0; right: 0; bottom: 2vh; display: flex; justify-content: center; gap: clamp(6px, 2vw, 18px);
+            z-index: 10; padding: 0 8px; flex-wrap: wrap; }
+        .machine { position: relative; width: clamp(64px, 17vw, 130px); aspect-ratio: 1; border-radius: 24px; border: 4px solid #fff;
+            background: #ffd166; box-shadow: 0 6px 0 #c77c02; cursor: pointer; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; font: inherit; color: #5a3e1b; }
+        .machine .em { font-size: clamp(30px, 8vw, 62px); line-height: 1; }
+        .machine .lbl { font-size: clamp(10px, 2.2vw, 16px); margin-top: 4px; }
+        .machine.done { background: #b7e4c7; box-shadow: 0 6px 0 #52b788; }
+        .machine.done::after { content: '✅'; position: absolute; top: -10px; right: -10px; font-size: clamp(18px, 4vw, 28px); }
+        .machine.next { background: #ffb703; animation: bounce 1s ease-in-out infinite; box-shadow: 0 6px 0 #b55d00, 0 0 24px #fff; }
+        .machine.next::before { content: 'NEXT!'; position: absolute; top: -26px; font-size: clamp(12px, 2.6vw, 18px); color: #fff;
+            background: #e63946; border-radius: 12px; padding: 2px 8px; }
+        .machine.locked { opacity: .45; }
+        .machine.wiggle { animation: wiggle .5s; }
+        .machine:active { transform: translateY(4px); }
+        @keyframes bounce { 50% { transform: translateY(-10px); } }
+        @keyframes wiggle { 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
+        #speak { position: fixed; top: 12px; right: 12px; z-index: 20; width: 48px; height: 48px; border-radius: 50%; border: 2px solid rgba(255,255,255,.6);
+            background: rgba(0,0,0,.45); color: #fff; font-size: 22px; cursor: pointer; }
+        #newjob { position: fixed; top: 68px; right: 12px; z-index: 20; border: none; background: rgba(255,255,255,.6); border-radius: 16px;
+            padding: 4px 10px; font: inherit; font-size: 13px; color: #5a3e1b; cursor: pointer; }
+        .rain { position: fixed; top: -60px; font-size: clamp(30px, 6vw, 56px); pointer-events: none; z-index: 1400; animation: fall linear forwards; }
+        @keyframes fall { to { transform: translateY(115vh) rotate(360deg); } }
+        /* Shared game menu (list filled by games.js) */
+        #game-nav { position: fixed; top: 12px; left: 12px; z-index: 2000; }
+        #nav-toggle { background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.6); color: #fff; font-size: 24px; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; }
+        #nav-overlay { position: fixed; inset: 0; background: rgba(10,10,30,.95); z-index: 2001; display: flex; align-items: center; justify-content: center; transition: opacity .3s; }
+        #nav-overlay.hidden { opacity: 0; pointer-events: none; }
+        #nav-close { position: absolute; top: 24px; right: 24px; background: none; border: none; color: #fff; font-size: 40px; cursor: pointer; }
+        .nav-links { display: flex; flex-direction: column; gap: 12px; text-align: center; max-height: 85vh; overflow-y: auto; padding: 10px; }
+        .nav-links a { color: #fff; text-decoration: none; font-size: 22px; padding: 10px 30px; border-radius: 30px; background: rgba(255,255,255,.1); }
+    </style>
+</head>
+<body>
+    <canvas id="c"></canvas>
+    <div id="title"></div>
+    <button id="speak" aria-label="Say it again">🔊</button>
+    <button id="newjob">↺ new building</button>
+    <div id="machines"></div>
+    <div id="game-nav"><button id="nav-toggle" aria-label="Games">☰</button></div>
+    <div id="nav-overlay" class="hidden">
+        <button id="nav-close" aria-label="Close">✕</button>
+        <div class="nav-links"><!-- filled from games.js --></div>
+    </div>
+
+<script src="jobsite.js"></script>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, G, s, t = 0, last = 0;
+let state = JobSite.load();
+const RIBBON = JobSite.stepIndex('ribbon');
+let ribbon = { cut: false, t: 0 };       // ribbon cutting animation
+let slide = 0;                          // building sliding off to town after the ribbon
+
+// ---------- sound ----------
+let AC = null;
+function tone(f, d = .15, type = 'triangle', v = .18, delay = 0) {
+    try {
+        AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+        if (AC.state === 'suspended') AC.resume();
+        const n = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+        o.type = type; o.frequency.setValueAtTime(f, n);
+        g.gain.setValueAtTime(v, n); g.gain.exponentialRampToValueAtTime(.001, n + d);
+        o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d);
+    } catch (e) { }
+}
+const fanfare = () => [523, 659, 784, 1046, 784, 1046].forEach((f, i) => tone(f, .3, 'triangle', .18, i * .13));
+
+function resize() {
+    const DPR = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    s = Math.max(.45, Math.min(W / 800, H / 600));
+    G = H * 0.64;
+}
+addEventListener('resize', resize);
+resize();
+
+// ---------- what to say / show ----------
+function prompt() {
+    const b = JobSite.building(state);
+    const st = JobSite.STEPS[state.step];
+    if (!st) return `Hooray!`;
+    if (state.step === 0) return `Let's build a ${b.name}! First, the excavator digs the hole.`;
+    if (st.id === 'ribbon') return `The ${b.name} is finished! Tap the scissors to cut the ribbon!`;
+    return `Next, the ${st.machine.toLowerCase()}! ${st.job}.`;
+}
+function titleText() {
+    const b = JobSite.building(state);
+    const st = JobSite.STEPS[state.step];
+    return st ? `${b.emoji} Building a ${b.name}` : `${b.emoji} All done!`;
+}
+
+function buildButtons() {
+    const box = document.getElementById('machines');
+    box.innerHTML = '';
+    JobSite.STEPS.forEach((st, i) => {
+        if (st.id === 'ribbon') return;  // the ribbon lives on the building itself
+        const b = document.createElement('button');
+        b.className = 'machine ' + (i < state.step ? 'done' : i === state.step ? 'next' : 'locked');
+        b.innerHTML = `<span class="em">${st.emoji}</span><span class="lbl">${st.machine}</span>`;
+        b.addEventListener('click', () => {
+            if (i <= state.step) { tone(660, .1); location.href = st.file; return; }
+            // Not yet: point at the one to do first
+            const nextBtn = box.querySelector('.next');
+            JobSite.say(`First, ${JobSite.STEPS[state.step].job.toLowerCase()}!`);
+            if (nextBtn) { nextBtn.classList.remove('wiggle'); void nextBtn.offsetWidth; nextBtn.classList.add('wiggle'); }
+        });
+        box.appendChild(b);
+    });
+    document.getElementById('title').textContent = titleText();
+}
+buildButtons();
+
+// ---------- drawing ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function lot() {
+    const bw = Math.min(W * 0.46, 380 * s);
+    const nf = Math.max(JobSite.building(state).floors, (state.floors || []).length);
+    return { cx: W / 2, bw, pitD: 70 * s, fh: Math.min(bw * 0.3, (G - H * 0.2) / (nf + 1.6)) };
+}
+
+function drawScene() {
+    const sky = ctx.createLinearGradient(0, 0, 0, G);
+    sky.addColorStop(0, '#6ec6ff'); sky.addColorStop(1, '#d7f0ff');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, G);
+    ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(W * .88, H * .14, 36 * s, 0, 7); ctx.fill();
+    // far hill = your town
+    ctx.fillStyle = '#9ad46b';
+    ctx.beginPath(); ctx.moveTo(0, G);
+    for (let x = 0; x <= W; x += 20) ctx.lineTo(x, G - 70 * s - Math.sin(x / W * Math.PI * 2) * 18 * s);
+    ctx.lineTo(W, G); ctx.fill();
+    ctx.font = `${40 * s}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    const n = state.town.length;
+    state.town.forEach((b, i) => {
+        // spread the town along the hill, skipping the middle where the lot is
+        const slots = [0.08, 0.92, 0.16, 0.84, 0.24, 0.76, 0.12, 0.88, 0.2, 0.8, 0.28, 0.72];
+        const x = W * slots[i % slots.length] + (i >= slots.length ? 20 * s : 0);
+        ctx.fillText(b.emoji, x, G - 66 * s - Math.sin(x / W * Math.PI * 2) * 18 * s + 4 * s);
+    });
+    // dirt ground
+    ctx.fillStyle = '#c8a26b'; ctx.fillRect(0, G, W, H - G);
+    ctx.fillStyle = '#b58d55'; ctx.fillRect(0, G, W, 8 * s);
+}
+
+function drawLot() {
+    const L = lot(), b = JobSite.building(state), step = state.step;
+    const x0 = L.cx - L.bw / 2;
+    const ox = slide * W;  // slides away after the ribbon is cut
+    ctx.save(); ctx.translate(ox, 0);
+
+    // Stakes and string before digging
+    if (step === 0) {
+        ctx.strokeStyle = '#ff7f11'; ctx.lineWidth = 3 * s; ctx.setLineDash([10 * s, 8 * s]);
+        ctx.beginPath(); ctx.moveTo(x0, G - 20 * s); ctx.lineTo(x0 + L.bw, G - 20 * s); ctx.stroke();
+        ctx.setLineDash([]);
+        [x0, x0 + L.bw].forEach(x => { ctx.fillStyle = '#8d5524'; ctx.fillRect(x - 4 * s, G - 34 * s, 8 * s, 40 * s);
+            ctx.fillStyle = '#ff7f11'; ctx.fillRect(x - 6 * s, G - 36 * s, 12 * s, 8 * s); });
+        // "coming soon" sign
+        const sx = x0 + L.bw + 50 * s;
+        ctx.fillStyle = '#8d5524'; ctx.fillRect(sx - 4 * s, G - 110 * s, 8 * s, 110 * s);
+        ctx.fillStyle = '#fff'; rr(sx - 50 * s, G - 150 * s, 100 * s, 70 * s, 10 * s); ctx.fill();
+        ctx.strokeStyle = '#ffb703'; ctx.lineWidth = 4 * s; ctx.stroke();
+        ctx.font = `${44 * s}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(b.emoji, sx, G - 115 * s);
+    }
+    // The hole
+    if (step >= 1 && step < 3) {
+        ctx.fillStyle = '#5d4037';
+        ctx.beginPath(); ctx.moveTo(x0, G); ctx.lineTo(x0 + 16 * s, G + L.pitD); ctx.lineTo(x0 + L.bw - 16 * s, G + L.pitD); ctx.lineTo(x0 + L.bw, G); ctx.fill();
+        // dirt pile beside it
+        ctx.fillStyle = '#8d6e63';
+        ctx.beginPath(); ctx.ellipse(x0 - 60 * s, G, 55 * s, 40 * s, 0, Math.PI, 0); ctx.fill();
+    }
+    // Gravel
+    if (step === 2) {
+        ctx.fillStyle = '#9e9e9e';
+        ctx.beginPath(); ctx.moveTo(x0 + 2 * s, G + 4 * s); ctx.lineTo(x0 + 16 * s, G + L.pitD); ctx.lineTo(x0 + L.bw - 16 * s, G + L.pitD); ctx.lineTo(x0 + L.bw - 2 * s, G + 4 * s); ctx.fill();
+        ctx.fillStyle = '#757575';
+        for (let i = 0; i < 40; i++) { ctx.beginPath(); ctx.arc(x0 + 20 * s + ((i * 53) % (L.bw - 40 * s)), G + 10 * s + ((i * 29) % (L.pitD - 16 * s)), 4 * s, 0, 7); ctx.fill(); }
+    }
+    // Concrete slab (with the kid's scribble pressed into it)
+    if (step >= 3) {
+        ctx.fillStyle = '#cfd8dc'; rr(x0 - 10 * s, G - 14 * s, L.bw + 20 * s, 22 * s, 4 * s); ctx.fill();
+        ctx.fillStyle = '#b0bec5'; ctx.fillRect(x0 - 10 * s, G + 2 * s, L.bw + 20 * s, 6 * s);
+    }
+    // Floors from the crane (windows, paint and decorations once the finish crew is done)
+    if (step >= 4) {
+        const floors = state.floors && state.floors.length ? state.floors : Array(b.floors).fill(b.colors[0]);
+        const finished = step >= RIBBON;
+        JobSite.drawBuilding(ctx, {
+            x0, base: G - 14 * s, bw: L.bw, fh: L.fh, s, roof: b.roof,
+            floors: finished && state.paint && state.paint.length ? state.paint : floors,
+            windows: finished ? 'glass' : 'holes', shapes: state.shapes, door: finished,
+            decor: finished ? state.decor : []
+        });
+        if (state.step === RIBBON || ribbon.cut) drawRibbon(x0, L);
+    }
+    // The letter he wrote in the wet cement, as a stepping stone out front
+    if (step >= 3 && state.scribble && state.scribble.length) {
+        const sw = 110 * s, sh = 60 * s, sx = L.cx - sw / 2 + L.bw * .1, sy = G + 26 * s;
+        ctx.fillStyle = '#e0e0e0'; rr(sx, sy, sw, sh, 8 * s); ctx.fill();
+        ctx.strokeStyle = '#9e9e9e'; ctx.lineWidth = 2 * s; ctx.stroke();
+        ctx.strokeStyle = '#616161'; ctx.lineWidth = 4 * s; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        state.scribble.forEach(st => {
+            ctx.beginPath();
+            st.forEach(([u, v], i) => { const px = sx + 6 * s + u * (sw - 12 * s), py = sy + 4 * s + v * (sh - 8 * s); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
+            ctx.stroke();
+        });
+    }
+    ctx.restore();
+}
+function drawRoof(type, x0, y, bw, fh) {
+    ctx.fillStyle = '#6d4c41';
+    if (type === 'triangle') {
+        ctx.beginPath(); ctx.moveTo(x0 - 16 * s, y); ctx.lineTo(x0 + bw / 2, y - fh * .9); ctx.lineTo(x0 + bw + 16 * s, y); ctx.fill();
+    } else if (type === 'castle') {
+        ctx.fillStyle = '#6c757d';
+        for (let k = 0; k < 5; k++) ctx.fillRect(x0 + k * bw / 4.5, y - fh * .35, bw / 9, fh * .35);
+    } else {
+        ctx.fillRect(x0 - 8 * s, y - 10 * s, bw + 16 * s, 12 * s);
+    }
+}
+function drawRibbon(x0, L) {
+    const y = G - 14 * s - L.fh * .45;
+    ctx.strokeStyle = '#e63946'; ctx.lineWidth = 10 * s;
+    if (!ribbon.cut) {
+        ctx.beginPath(); ctx.moveTo(x0 - 50 * s, y); ctx.quadraticCurveTo(L.cx, y + 20 * s, x0 + L.bw + 50 * s, y); ctx.stroke();
+        // bow + scissors that wiggle
+        ctx.font = `${70 * s}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.save(); ctx.translate(L.cx, y + 10 * s - 70 * s + Math.sin(t * 5) * 8 * s); ctx.rotate(Math.sin(t * 8) * .2);
+        ctx.fillText('✂️', 0, 0); ctx.restore();
+        ctx.font = `${44 * s}px sans-serif`; ctx.fillText('🎀', L.cx, y + 12 * s);
+    } else {
+        // two ends falling away
+        const k = Math.min(1, ribbon.t / .8);
+        ctx.beginPath(); ctx.moveTo(x0 - 50 * s, y); ctx.lineTo(L.cx - 30 * s - k * 40 * s, y + k * 90 * s); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x0 + L.bw + 50 * s, y); ctx.lineTo(L.cx + 30 * s + k * 40 * s, y + k * 90 * s); ctx.stroke();
+    }
+}
+
+function rain(emojis) {
+    for (let i = 0; i < 40; i++) setTimeout(() => {
+        const e = document.createElement('div');
+        e.className = 'rain';
+        e.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        e.style.left = Math.random() * 95 + 'vw';
+        e.style.animationDuration = (2 + Math.random() * 2) + 's';
+        document.body.appendChild(e);
+        setTimeout(() => e.remove(), 4200);
+    }, i * 60);
+}
+
+function cutRibbon() {
+    if (ribbon.cut) return;
+    const b = JobSite.building(state);
+    ribbon.cut = true; ribbon.t = 0;
+    tone(1200, .08, 'square', .1); tone(900, .1, 'square', .1, .08);
+    fanfare();
+    JobSite.say(`Hooray! The ${b.name} is open!`);
+    rain([b.emoji, '🎉', '🎊', '⭐', '✨', '🎈']);
+    setTimeout(() => { slide = 0.0001; }, 2800);
+}
+
+// Tap on the lot: the scissors (ribbon step), otherwise repeat the prompt
+canvas.addEventListener('pointerdown', (e) => {
+    if (state.step === RIBBON && !ribbon.cut) {
+        const L = lot();
+        if (Math.abs(e.clientX - L.cx) < L.bw * .75 && e.clientY > G - 14 * s - L.fh * 2.5 && e.clientY < G + 20 * s) { cutRibbon(); return; }
+    }
+    JobSite.say(prompt());
+});
+document.getElementById('speak').addEventListener('click', () => JobSite.say(prompt()));
+let newJobTaps = 0;
+document.getElementById('newjob').addEventListener('click', (e) => {
+    const btn = e.currentTarget;
+    if (++newJobTaps < 2) { btn.textContent = 'tap again to start over'; setTimeout(() => { newJobTaps = 0; btn.textContent = '↺ new building'; }, 2500); return; }
+    newJobTaps = 0; btn.textContent = '↺ new building';
+    // Skip this building and start the next one fresh
+    const s0 = JobSite.load(); s0.building = (s0.building + 1) % JobSite.BUILDINGS.length; s0.step = 0; s0.floors = []; s0.scribble = []; s0.shapes = []; s0.decor = []; s0.paint = []; JobSite.save(s0);
+    state = s0; buildButtons(); JobSite.say(prompt());
+});
+
+function loop(ts) {
+    const dt = last ? Math.min((ts - last) / 1000, .05) : .016;
+    last = ts; t += dt;
+    if (ribbon.cut) ribbon.t += dt;
+    if (slide > 0) {
+        slide += dt * 0.6;
+        if (slide > 1) {
+            state = JobSite.finishBuilding();
+            slide = 0; ribbon = { cut: false, t: 0 };
+            buildButtons();
+            setTimeout(() => JobSite.say(prompt()), 600);
+        }
+    }
+    drawScene();
+    drawLot();
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+
+document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
+document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
+</script>
+<script src="games.js"></script>
+</body>
+</html>
