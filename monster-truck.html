@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>🛻 Monster Truck Jumps</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+        html, body { width: 100%; height: 100%; overflow: hidden; touch-action: none; position: fixed; background: #ffcf8a;
+            font-family: 'Arial Rounded MT Bold', 'Chalkboard SE', 'Comic Sans MS', sans-serif; }
+        canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+        .screen { position: fixed; inset: 0; z-index: 1500; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 18px; background: rgba(255, 183, 3, .93); text-align: center; padding: 20px; }
+        .screen.hidden { display: none; }
+        .screen h1 { font-size: clamp(38px, 8vw, 76px); color: #fff; text-shadow: 0 4px 0 #8d4b00; }
+        .screen p { font-size: clamp(18px, 3.5vw, 26px); color: #5a3e1b; }
+        .big-btn { font: inherit; font-size: clamp(26px, 5vw, 38px); padding: 16px 52px; border-radius: 50px; border: 5px solid #fff;
+            background: linear-gradient(135deg, #e63946, #b5179e); color: #fff; cursor: pointer; box-shadow: 0 8px 0 #7a0d3f; }
+        #speak { position: fixed; top: 12px; right: 12px; z-index: 20; width: 48px; height: 48px; border-radius: 50%; border: 2px solid rgba(255,255,255,.6);
+            background: rgba(0,0,0,.45); color: #fff; font-size: 22px; cursor: pointer; }
+        .rain { position: fixed; top: -60px; font-size: clamp(30px, 6vw, 56px); pointer-events: none; z-index: 1400; animation: fall linear forwards; }
+        @keyframes fall { to { transform: translateY(115vh) rotate(360deg); } }
+        #game-nav { position: fixed; top: 12px; left: 12px; z-index: 2000; }
+        #nav-toggle { background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.6); color: #fff; font-size: 24px; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; }
+        #nav-overlay { position: fixed; inset: 0; background: rgba(10,10,30,.95); z-index: 2001; display: flex; align-items: center; justify-content: center; transition: opacity .3s; }
+        #nav-overlay.hidden { opacity: 0; pointer-events: none; }
+        #nav-close { position: absolute; top: 24px; right: 24px; background: none; border: none; color: #fff; font-size: 40px; cursor: pointer; }
+        .nav-links { display: flex; flex-direction: column; gap: 12px; text-align: center; max-height: 85vh; overflow-y: auto; padding: 10px; }
+        .nav-links a { color: #fff; text-decoration: none; font-size: 22px; padding: 10px 30px; border-radius: 30px; background: rgba(255,255,255,.1); }
+    </style>
+</head>
+<body>
+    <canvas id="c"></canvas>
+    <button id="speak" aria-label="Say it again">🔊</button>
+    <div id="game-nav"><button id="nav-toggle" aria-label="Games">☰</button></div>
+    <div id="nav-overlay" class="hidden">
+        <button id="nav-close" aria-label="Close">✕</button>
+        <div class="nav-links"><!-- filled from games.js --></div>
+    </div>
+    <div id="start" class="screen">
+        <h1>🛻 Monster Truck Jumps!</h1>
+        <p>Tap to jump once for each part of the word.</p>
+        <p>Di… no… saur! That's 3 jumps! 💥</p>
+        <button class="big-btn" id="start-btn">Start Your Engine!</button>
+    </div>
+
+<script>
+// =============================================================
+// MONSTER TRUCK JUMPS: syllables (clapping out words)
+//  A picture + word appear. Each tap = one jump onto a car (CRUNCH)
+//  and one chunk of the word is said and lit up: "di" "no" "saur".
+//  When the word is done: "How many jumps?" Tap 1, 2, 3 or 4.
+//  Any answer shows the right one; the right one gets a star.
+//  Extra taps after the word is done still jump (it's fun!) but
+//  don't change the count.
+// =============================================================
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const VW = 1000, VH = 600, GROUND = 500;
+// [word, emoji, written chunks, spoken chunks]
+const WORDS = [
+    ['dog', '🐶', ['dog'], ['dog']], ['cat', '🐱', ['cat'], ['cat']], ['sun', '☀️', ['sun'], ['sun']], ['truck', '🚚', ['truck'], ['truck']],
+    ['fish', '🐟', ['fish'], ['fish']], ['frog', '🐸', ['frog'], ['frog']],
+    ['rabbit', '🐇', ['rab', 'bit'], ['rab', 'bit']], ['pizza', '🍕', ['piz', 'za'], ['peet', 'suh']], ['rocket', '🚀', ['rock', 'et'], ['rock', 'it']],
+    ['monkey', '🐒', ['mon', 'key'], ['monk', 'ee']], ['tiger', '🐯', ['ti', 'ger'], ['tie', 'ger']], ['apple', '🍎', ['ap', 'ple'], ['ap', 'pull']],
+    ['turtle', '🐢', ['tur', 'tle'], ['tur', 'tull']], ['pumpkin', '🎃', ['pump', 'kin'], ['pump', 'kin']], ['robot', '🤖', ['ro', 'bot'], ['row', 'bot']],
+    ['cupcake', '🧁', ['cup', 'cake'], ['cup', 'cake']], ['zebra', '🦓', ['ze', 'bra'], ['zee', 'bruh']], ['penguin', '🐧', ['pen', 'guin'], ['pen', 'gwin']],
+    ['dinosaur', '🦖', ['di', 'no', 'saur'], ['dye', 'no', 'sore']], ['banana', '🍌', ['ba', 'na', 'na'], ['buh', 'nan', 'uh']],
+    ['elephant', '🐘', ['el', 'e', 'phant'], ['el', 'uh', 'fant']], ['butterfly', '🦋', ['but', 'ter', 'fly'], ['butt', 'er', 'fly']],
+    ['octopus', '🐙', ['oc', 'to', 'pus'], ['ock', 'toe', 'pus']], ['kangaroo', '🦘', ['kan', 'ga', 'roo'], ['kang', 'guh', 'roo']],
+    ['tomato', '🍅', ['to', 'ma', 'to'], ['tuh', 'may', 'toe']], ['hamburger', '🍔', ['ham', 'bur', 'ger'], ['ham', 'bur', 'grr']],
+    ['helicopter', '🚁', ['he', 'li', 'cop', 'ter'], ['hell', 'ee', 'cop', 'ter']], ['watermelon', '🍉', ['wa', 'ter', 'mel', 'on'], ['wah', 'ter', 'mel', 'un']],
+    ['caterpillar', '🐛', ['cat', 'er', 'pil', 'lar'], ['cat', 'er', 'pill', 'er']], ['alligator', '🐊', ['al', 'li', 'ga', 'tor'], ['al', 'ih', 'gay', 'ter']]
+];
+const CAR_COLORS = ['#e63946', '#1e88e5', '#2a9d8f', '#ffb703', '#9b5de5', '#ff7f11'];
+let W, H, k, ox, oy, t = 0, last = 0;
+
+let w = null, jumps = 0, stage = 'menu';     // jump | ask | answer | drive
+let truck = { x: 110, y: 0, vy: 0, fromX: 110, toX: 110, air: false, tilt: 0 };
+let cars = [], answer = null, idle = 0, stars = 0, wordsDone = 0, shake = 0, particles = [], queue = [], msg = null;
+
+// ---------- sound ----------
+let AC = null;
+function tone(f, d = .15, type = 'triangle', v = .18, slideTo, delay = 0) {
+    try {
+        AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+        if (AC.state === 'suspended') AC.resume();
+        const n = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+        o.type = type; o.frequency.setValueAtTime(f, n);
+        if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, n + d);
+        g.gain.setValueAtTime(v, n); g.gain.exponentialRampToValueAtTime(.001, n + d);
+        o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d);
+    } catch (e) { }
+}
+function say(text, rate = .85) {
+    try {
+        if (!('speechSynthesis' in window)) return;
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text); u.rate = rate; u.pitch = 1.1;
+        speechSynthesis.speak(u);
+    } catch (e) { }
+}
+function crunch() {
+    try {
+        AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+        const n = AC.sampleRate * .35, buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
+        for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2);
+        const src = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+        f.type = 'lowpass'; f.frequency.value = 900; g.gain.value = .5;
+        src.buffer = buf; src.connect(f).connect(g).connect(AC.destination); src.start();
+    } catch (e) { }
+    tone(90, .25, 'square', .12, 50);
+}
+const vroom = () => tone(70, .8, 'sawtooth', .1, 160);
+const ding = () => { tone(988, .12); tone(1319, .2, 'triangle', .18, null, .08); };
+const fanfare = () => [523, 659, 784, 1046].forEach((f, i) => tone(f, .3, 'triangle', .18, null, i * .14));
+const NUM = ['zero', 'one', 'two', 'three', 'four'];
+
+function resize() {
+    const DPR = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    k = Math.min(W / VW, H / VH);
+    ox = (W - VW * k) / 2; oy = (H - VH * k) / 2;
+    ctx.setTransform(DPR * k, 0, 0, DPR * k, DPR * ox, DPR * oy);
+}
+addEventListener('resize', resize);
+resize();
+const toWorld = (e) => ({ x: (e.clientX - ox) / k, y: (e.clientY - oy) / k });
+
+// ---------- flow ----------
+const carX = (i) => 290 + i * 150;
+function newWord() {
+    if (!queue.length) {
+        // mix of 1-, 2-, 3- and 4-part words
+        queue = WORDS.slice().sort(() => Math.random() - .5);
+    }
+    w = queue.pop();
+    jumps = 0; answer = null; stage = 'jump'; idle = 0;
+    truck = { x: 110, y: 0, vy: 0, fromX: 110, toX: 110, air: false, tilt: 0 };
+    cars = Array.from({ length: 5 }, (_, i) => ({ x: carX(i), crushed: 0, color: CAR_COLORS[(i + wordsDone) % CAR_COLORS.length] }));
+    vroom();
+    say(`${w[0]}! Jump for each part. ${w[3].join('... ')}!`, .8);
+}
+function jump() {
+    if (truck.air) return;
+    idle = 0;
+    // jump onto the next car (or bounce in place on the last one)
+    const idx = Math.min(cars.length - 1, Math.round((truck.x - carX(0)) / 150) + 1);
+    const target = carX(Math.max(0, idx));
+    truck.fromX = truck.x; truck.fromY = truck.y; truck.toX = target; truck.air = true; truck.t = 0;
+    tone(160, .2, 'sawtooth', .08, 300);
+    if (stage === 'jump' && jumps < w[2].length) {
+        jumps++;
+        say(w[3][jumps - 1], .9);
+        if (jumps === w[2].length) setTimeout(() => {
+            if (stage !== 'jump') return;
+            stage = 'ask'; idle = 0;
+            say(`${w[3].join('... ')}... ${w[0]}! How many jumps was that?`, .85);
+        }, 1100);
+    } else if (stage === 'jump') {
+        say('Wheee!');
+    }
+}
+function choose(n) {
+    answer = n; stage = 'answer';
+    const right = n === w[2].length;
+    if (right) {
+        stars++; fanfare();
+        say(`Yes! ${NUM[n]} jumps! ${w[3].join('... ')}!`, .85);
+        rain(['⭐', w[1], '💥', '🛻'], 22);
+        msg = { text: `⭐ ${w[2].join(' · ')} ⭐`, life: 3 };
+    } else {
+        ding();
+        say(`${w[0]} has ${NUM[w[2].length]}! ${w[3].join('... ')}!`, .85);
+        msg = { text: w[2].join(' · '), life: 3 };
+    }
+    setTimeout(() => { stage = 'drive'; vroom(); }, 2800);
+}
+function rain(emojis, n) {
+    for (let i = 0; i < n; i++) setTimeout(() => {
+        const e = document.createElement('div');
+        e.className = 'rain'; e.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        e.style.left = Math.random() * 95 + 'vw'; e.style.animationDuration = (2 + Math.random() * 2) + 's';
+        document.body.appendChild(e); setTimeout(() => e.remove(), 4200);
+    }, i * 60);
+}
+// number buttons for "how many?"
+function numButtons() { return [1, 2, 3, 4].map(n => ({ n, x: 290 + (n - 1) * 140, y: 255, r: 52 })); }
+
+// ---------- input ----------
+canvas.addEventListener('pointerdown', (e) => {
+    if (stage === 'menu') return;
+    const p = toWorld(e);
+    if (stage === 'ask') {
+        const b = numButtons().find(b => Math.hypot(p.x - b.x, p.y - b.y) < b.r + 16);
+        if (b) choose(b.n); else say('How many jumps was that?');
+        return;
+    }
+    if (stage === 'jump') jump();
+});
+document.addEventListener('keydown', (e) => {
+    if (stage === 'jump' && (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowUp')) jump();
+    if (stage === 'ask' && '1234'.includes(e.key)) choose(+e.key);
+});
+document.getElementById('start-btn').addEventListener('click', () => {
+    document.getElementById('start').classList.add('hidden');
+    newWord();
+});
+document.getElementById('speak').addEventListener('click', () => {
+    if (!w) return;
+    say(stage === 'ask' ? 'How many jumps was that?' : `${w[0]}! ${w[3].join('... ')}!`, .8);
+});
+
+// ---------- update ----------
+function update(dt) {
+    idle += dt;
+    shake = Math.max(0, shake - dt * 3);
+    if (truck.air) {
+        truck.t += dt / .62;
+        const tt = Math.min(1, truck.t);
+        truck.x = truck.fromX + (truck.toX - truck.fromX) * tt;
+        // landing height: on top of a car (crushed cars are lower)
+        const onCar = cars.find(c => Math.abs(c.x - truck.toX) < 10);
+        const landH = onCar ? 50 - 30 * Math.min(1, onCar.crushed + (tt >= 1 ? 1 : 0)) : 0;
+        truck.y = (truck.fromY || 0) + (-landH - (truck.fromY || 0)) * tt - Math.sin(tt * Math.PI) * 170;
+        truck.tilt = Math.sin(tt * Math.PI * 2) * -.15;
+        if (tt >= 1) {
+            truck.air = false; truck.tilt = 0;
+            if (onCar && onCar.crushed < 1) { onCar.crushed = 1; crunch(); shake = 1; for (let i = 0; i < 16; i++) particles.push({ x: onCar.x, y: GROUND - 30, vx: (Math.random() - .5) * 400, vy: -Math.random() * 300, life: 1, c: Math.random() < .5 ? onCar.color : '#bde0fe' }); }
+            else tone(100, .15, 'square', .1, 60);
+        }
+    }
+    if (stage === 'drive') {
+        truck.x += 520 * dt; truck.y = Math.max(-20, truck.y);
+        if (truck.x > 1200) { wordsDone++; newWord(); }
+    }
+    particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 700 * dt; p.life -= dt; }); particles = particles.filter(p => p.life > 0);
+    if (msg) { msg.life -= dt; if (msg.life <= 0) msg = null; }
+    if (idle > 8 && stage === 'jump' && jumps < (w ? w[2].length : 0)) { idle = 0; say(jumps ? 'Keep jumping!' : `${w[0]}! Tap to jump!`); }
+    if (idle > 9 && stage === 'ask') { idle = 0; say(`How many jumps? ${w[3].join('... ')}`); }
+}
+
+// ---------- draw ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function emoji(e, x, y, size) { ctx.fillStyle = '#000'; ctx.font = `${size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(e, x, y); }
+function text(s, x, y, size, color, stroke = '#fff') {
+    ctx.font = `bold ${size}px 'Arial Rounded MT Bold', Arial, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = size * .18; ctx.strokeStyle = stroke; ctx.strokeText(s, x, y);
+    ctx.fillStyle = color; ctx.fillText(s, x, y);
+}
+function drawCar(c) {
+    const h = 50 - 30 * c.crushed;
+    ctx.save(); ctx.translate(c.x, GROUND);
+    ctx.fillStyle = c.color; rr(-60, -h, 120, h * .6, 10); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-36, -h); ctx.lineTo(-22, -h - 24 * (1 - c.crushed * .8)); ctx.lineTo(26, -h - 24 * (1 - c.crushed * .8)); ctx.lineTo(40, -h); ctx.fill();
+    ctx.fillStyle = c.crushed ? '#90a4ae' : '#bde0fe';
+    ctx.fillRect(-18, -h - 20 * (1 - c.crushed * .8), 18, 16 * (1 - c.crushed * .8)); ctx.fillRect(4, -h - 20 * (1 - c.crushed * .8), 18, 16 * (1 - c.crushed * .8));
+    ctx.fillStyle = '#222'; [-36, 36].forEach(x => { ctx.beginPath(); ctx.ellipse(x, -10, 14, 14 * (1 - c.crushed * .3), 0, 0, 7); ctx.fill(); });
+    if (c.crushed) emoji('💥', 0, -h - 20, 30 + Math.sin(t * 8) * 2);
+    ctx.restore();
+}
+function drawTruck() {
+    ctx.save(); ctx.translate(truck.x, GROUND + truck.y); ctx.rotate(truck.tilt);
+    // giant wheels
+    [-52, 52].forEach(x => {
+        ctx.fillStyle = '#1b1b1b'; ctx.beginPath(); ctx.arc(x, -42, 42, 0, 7); ctx.fill();
+        ctx.strokeStyle = '#444'; ctx.lineWidth = 6;
+        for (let a = 0; a < 8; a++) { const ang = a * Math.PI / 4 + truck.x / 30; ctx.beginPath(); ctx.moveTo(x + Math.cos(ang) * 30, -42 + Math.sin(ang) * 30); ctx.lineTo(x + Math.cos(ang) * 42, -42 + Math.sin(ang) * 42); ctx.stroke(); }
+        ctx.fillStyle = '#ffb703'; ctx.beginPath(); ctx.arc(x, -42, 14, 0, 7); ctx.fill();
+    });
+    // suspension
+    ctx.strokeStyle = '#9e9e9e'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(-52, -42); ctx.lineTo(-40, -86); ctx.moveTo(52, -42); ctx.lineTo(40, -86); ctx.stroke();
+    // body
+    ctx.fillStyle = '#7b2cbf'; rr(-80, -122, 160, 40, 12); ctx.fill();
+    ctx.fillStyle = '#9d4edd'; rr(-30, -158, 76, 42, 12); ctx.fill();
+    ctx.fillStyle = '#bde0fe'; rr(-20, -150, 30, 24, 5); ctx.fill(); rr(14, -150, 26, 24, 5); ctx.fill();
+    // flames
+    ctx.fillStyle = '#ff7f11'; ctx.beginPath(); ctx.moveTo(-70, -104); ctx.lineTo(-30, -112); ctx.lineTo(-44, -100); ctx.lineTo(-10, -104); ctx.lineTo(-50, -90); ctx.fill();
+    ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(80, -104, 7, 0, 7); ctx.fill();
+    ctx.restore();
+}
+function draw() {
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    g.addColorStop(0, '#ff9e6d'); g.addColorStop(1, '#ffe0a8');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+    const sx = shake ? (Math.random() - .5) * 10 * shake : 0;
+    ctx.save(); ctx.translate(sx, 0);
+    // stadium stands + flags
+    ctx.fillStyle = '#5c4033'; ctx.fillRect(-2000, 300, VW + 4000, 60);
+    for (let x = -100; x < VW + 100; x += 40) { ctx.fillStyle = ['#e63946', '#ffb703', '#1e88e5', '#2a9d8f'][Math.abs(x / 40) % 4 | 0]; ctx.beginPath(); ctx.arc(x, 300 + Math.sin(t * 3 + x) * 3, 10, 0, 7); ctx.fill(); }
+    ctx.fillStyle = '#a0522d'; ctx.fillRect(-2000, GROUND, VW + 4000, 2000);
+    ctx.fillStyle = '#c47a3d'; ctx.fillRect(-2000, 360, VW + 4000, GROUND - 360);
+    // ramp at the start
+    ctx.fillStyle = '#8d6e63'; ctx.beginPath(); ctx.moveTo(40, GROUND); ctx.lineTo(190, GROUND); ctx.lineTo(190, GROUND - 20); ctx.fill();
+    cars.forEach(drawCar);
+    drawTruck();
+    particles.forEach(p => { ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.c; ctx.fillRect(p.x - 4, p.y - 4, 8, 8); });
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    if (!w) return;
+
+    // the word board: picture + chunks that light up as you jump
+    ctx.fillStyle = 'rgba(255,255,255,.92)'; rr(180, 30, 640, 150, 26); ctx.fill();
+    emoji(w[1], 260, 105, 90);
+    const n = w[2].length, cw = Math.min(140, 460 / n);
+    w[2].forEach((ch, i) => {
+        const x = 340 + cw * (i + .5), lit = i < jumps || stage !== 'jump';
+        ctx.fillStyle = lit ? ['#ffb703', '#2a9d8f', '#e63946', '#1e88e5'][i] : '#eee';
+        rr(x - cw / 2 + 6, 70, cw - 12, 70, 16); ctx.fill();
+        text(ch, x, 106, Math.min(44, cw * .42), lit ? '#fff' : '#bbb', lit ? 'rgba(0,0,0,.25)' : '#fff');
+    });
+    // jump counter
+    text(String(jumps), 780, 106, 50, '#7b2cbf');
+
+    if (stage === 'ask' || stage === 'answer') {
+        ctx.fillStyle = 'rgba(255,255,255,.85)'; rr(200, 190, 600, 130, 26); ctx.fill();
+        numButtons().forEach(b => {
+            const right = b.n === w[2].length;
+            const glow = (stage === 'ask' && idle > 6 && right) || (stage === 'answer' && right);
+            ctx.globalAlpha = stage === 'answer' && !right ? .35 : 1;
+            ctx.fillStyle = glow ? '#fff3b0' : '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
+            ctx.strokeStyle = glow ? '#ffb300' : '#7b2cbf'; ctx.lineWidth = glow ? 8 : 5; ctx.stroke();
+            text(String(b.n), b.x, b.y + 2, 56, '#7b2cbf');
+            ctx.globalAlpha = 1;
+        });
+    }
+    if (stage === 'jump' && idle > 3 && jumps < w[2].length) emoji('👆', truck.x + 60, GROUND - 240 + Math.sin(t * 6) * 8, 50);
+    if (msg) { ctx.globalAlpha = Math.min(1, msg.life); text(msg.text, 500, 370, 54, '#ffd23f', '#7b2cbf'); ctx.globalAlpha = 1; }
+    ctx.fillStyle = '#5a3e1b'; ctx.font = 'bold 30px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(`⭐ ${stars}`, 930, 230);
+}
+
+function loop(ts) {
+    const dt = last ? Math.min((ts - last) / 1000, .05) : .016;
+    last = ts; t += dt;
+    if (stage !== 'menu') update(dt);
+    draw();
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
+document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
+</script>
+<script src="games.js"></script>
+</body>
+</html>

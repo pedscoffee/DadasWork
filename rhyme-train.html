@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>🚂 Rhyme Train</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+        html, body { width: 100%; height: 100%; overflow: hidden; touch-action: none; position: fixed; background: #8fd3ff;
+            font-family: 'Arial Rounded MT Bold', 'Chalkboard SE', 'Comic Sans MS', sans-serif; }
+        canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+        .screen { position: fixed; inset: 0; z-index: 1500; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 18px; background: rgba(143, 211, 255, .94); text-align: center; padding: 20px; }
+        .screen.hidden { display: none; }
+        .screen h1 { font-size: clamp(38px, 8vw, 76px); color: #fff; text-shadow: 0 4px 0 #1c5d99; }
+        .screen p { font-size: clamp(18px, 3.5vw, 26px); color: #1c5d99; }
+        .big-btn { font: inherit; font-size: clamp(26px, 5vw, 38px); padding: 16px 52px; border-radius: 50px; border: 5px solid #fff;
+            background: linear-gradient(135deg, #ff7eb3, #ff4f9a); color: #fff; cursor: pointer; box-shadow: 0 8px 0 #c2185b; }
+        #speak { position: fixed; top: 12px; right: 12px; z-index: 20; width: 48px; height: 48px; border-radius: 50%; border: 2px solid rgba(255,255,255,.6);
+            background: rgba(0,0,0,.45); color: #fff; font-size: 22px; cursor: pointer; }
+        .rain { position: fixed; top: -60px; font-size: clamp(30px, 6vw, 56px); pointer-events: none; z-index: 1400; animation: fall linear forwards; }
+        @keyframes fall { to { transform: translateY(115vh) rotate(360deg); } }
+        #game-nav { position: fixed; top: 12px; left: 12px; z-index: 2000; }
+        #nav-toggle { background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.6); color: #fff; font-size: 24px; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; }
+        #nav-overlay { position: fixed; inset: 0; background: rgba(10,10,30,.95); z-index: 2001; display: flex; align-items: center; justify-content: center; transition: opacity .3s; }
+        #nav-overlay.hidden { opacity: 0; pointer-events: none; }
+        #nav-close { position: absolute; top: 24px; right: 24px; background: none; border: none; color: #fff; font-size: 40px; cursor: pointer; }
+        .nav-links { display: flex; flex-direction: column; gap: 12px; text-align: center; max-height: 85vh; overflow-y: auto; padding: 10px; }
+        .nav-links a { color: #fff; text-decoration: none; font-size: 22px; padding: 10px 30px; border-radius: 30px; background: rgba(255,255,255,.1); }
+    </style>
+</head>
+<body>
+    <canvas id="c"></canvas>
+    <button id="speak" aria-label="Say it again">🔊</button>
+    <div id="game-nav"><button id="nav-toggle" aria-label="Games">☰</button></div>
+    <div id="nav-overlay" class="hidden">
+        <button id="nav-close" aria-label="Close">✕</button>
+        <div class="nav-links"><!-- filled from games.js --></div>
+    </div>
+    <div id="start" class="screen">
+        <h1>🚂 Rhyme Train 🎶</h1>
+        <p>Load the cars that rhyme with the engine!</p>
+        <p>Cat… hat… bat! They all sound the same at the end.</p>
+        <button class="big-btn" id="start-btn">All Aboard!</button>
+    </div>
+
+<script>
+// =============================================================
+// RHYME TRAIN
+//  The engine carries a picture (🐱 cat). Three cars wait on the
+//  siding. Tap one:
+//   - rhymes: it rolls down and hooks on. "Cat... hat! They rhyme!"
+//   - doesn't: it rolls down, BOINGs off the bumper and goes back.
+//     "Cat... dog. No rhyme!" (then a new car takes its place)
+//  The right car glows after a pause. When the train is full it
+//  chugs away and a new engine pulls in.
+// =============================================================
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const VW = 1000, VH = 600, TRACK = 500, SIDING = 250;
+const FAMILIES = [
+    { head: ['cat', '🐱'], rhymes: [['hat', '🎩'], ['bat', '🦇'], ['rat', '🐀']] },
+    { head: ['dog', '🐶'], rhymes: [['frog', '🐸'], ['hog', '🐗'], ['fog', '🌫️']] },
+    { head: ['bee', '🐝'], rhymes: [['tree', '🌳'], ['key', '🔑'], ['knee', '🦵']] },
+    { head: ['moon', '🌙'], rhymes: [['spoon', '🥄'], ['balloon', '🎈'], ['raccoon', '🦝']] },
+    { head: ['sock', '🧦'], rhymes: [['clock', '🕰️'], ['rock', '🪨'], ['lock', '🔒']] },
+    { head: ['goat', '🐐'], rhymes: [['boat', '⛵'], ['coat', '🧥']] },
+    { head: ['star', '⭐'], rhymes: [['car', '🚗'], ['jar', '🫙']] },
+    { head: ['bear', '🐻'], rhymes: [['pear', '🍐'], ['chair', '🪑']] },
+    { head: ['cake', '🍰'], rhymes: [['snake', '🐍'], ['lake', '🏞️']] },
+    { head: ['king', '🤴'], rhymes: [['ring', '💍'], ['wing', '🪽']] },
+    { head: ['fish', '🐟'], rhymes: [['dish', '🍽️'], ['wish', '🌠']] },
+    { head: ['bed', '🛏️'], rhymes: [['sled', '🛷'], ['bread', '🍞']] }
+];
+const CAR_COLORS = ['#e63946', '#2a9d8f', '#ffb703', '#9b5de5', '#1e88e5', '#ff7f11'];
+const SLOTS = [260, 500, 740];   // siding positions
+let W, H, k, ox, oy, t = 0, last = 0;
+
+let fam = null, need = 0, attached = [], siding = [], moving = null;
+let trainX = -400, trainTarget = 620, stage = 'menu';   // arrive | play | leave
+let idle = 0, stars = 0, trains = 0, puffs = [], particles = [], msg = null, famQueue = [];
+
+// ---------- sound ----------
+let AC = null;
+function tone(f, d = .15, type = 'triangle', v = .18, slideTo, delay = 0) {
+    try {
+        AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+        if (AC.state === 'suspended') AC.resume();
+        const n = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+        o.type = type; o.frequency.setValueAtTime(f, n);
+        if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, n + d);
+        g.gain.setValueAtTime(v, n); g.gain.exponentialRampToValueAtTime(.001, n + d);
+        o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d);
+    } catch (e) { }
+}
+function say(text, rate = .85) {
+    try {
+        if (!('speechSynthesis' in window)) return;
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text); u.rate = rate; u.pitch = 1.15;
+        speechSynthesis.speak(u);
+    } catch (e) { }
+}
+const whistle = () => { tone(880, .35, 'sine', .14); tone(1175, .35, 'sine', .1); tone(880, .4, 'sine', .14, null, .45); tone(1175, .4, 'sine', .1, null, .45); };
+const clack = () => { tone(180, .06, 'square', .12); tone(140, .08, 'square', .1, null, .07); };
+const boing = () => tone(520, .4, 'sine', .22, 140);
+const ding = () => { tone(988, .12); tone(1319, .2, 'triangle', .18, null, .08); };
+const fanfare = () => [523, 659, 784, 1046].forEach((f, i) => tone(f, .3, 'triangle', .18, null, i * .14));
+
+function resize() {
+    const DPR = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    k = Math.min(W / VW, H / VH);
+    ox = (W - VW * k) / 2; oy = (H - VH * k) / 2;
+    ctx.setTransform(DPR * k, 0, 0, DPR * k, DPR * ox, DPR * oy);
+}
+addEventListener('resize', resize);
+resize();
+const toWorld = (e) => ({ x: (e.clientX - ox) / k, y: (e.clientY - oy) / k });
+
+// ---------- flow ----------
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+const rhymesLeft = () => fam.rhymes.filter(r => !attached.some(a => a.w === r) && !siding.some(s => s && s.w === r));
+function wrongWord() {
+    const others = FAMILIES.filter(f => f !== fam);
+    const f = pick(others);
+    const w = pick([f.head, ...f.rhymes]);
+    return siding.some(s => s && s.w[0] === w[0]) ? wrongWord() : w;
+}
+function newTrain() {
+    if (!famQueue.length) famQueue = FAMILIES.slice().sort(() => Math.random() - .5);
+    fam = famQueue.pop();
+    need = Math.min(3, fam.rhymes.length);
+    attached = []; siding = [null, null, null]; moving = null;
+    trainX = -400; trainTarget = 620; stage = 'arrive'; idle = 0;
+    whistle();
+}
+function fillSiding() {
+    // keep exactly one rhyming car waiting (while any are left); the rest don't rhyme
+    for (let i = 0; i < 3; i++) {
+        if (siding[i]) continue;
+        const needRhyme = !siding.some(x => x && x.rhyme) && rhymesLeft().length;
+        siding[i] = needRhyme
+            ? { w: pick(rhymesLeft()), rhyme: true, color: pick(CAR_COLORS), y: -120 }
+            : { w: wrongWord(), rhyme: false, color: pick(CAR_COLORS), y: -120 };
+    }
+    // the rhyming car shouldn't always land in the first empty slot
+    if (Math.random() < .6) {
+        const r = siding.findIndex(x => x.rhyme), j = Math.floor(Math.random() * 3);
+        if (r >= 0 && siding[r].y < 0 && siding[j].y < 0) [siding[r], siding[j]] = [siding[j], siding[r]];
+    }
+}
+function prompt() {
+    if (!fam) return '';
+    return `What rhymes with ${fam.head[0]}? Tap a car!`;
+}
+function tapCar(i) {
+    const c = siding[i];
+    if (!c || moving || stage !== 'play') return;
+    idle = 0;
+    siding[i] = null;
+    const slotX = carSlotX(attached.length);
+    moving = { c, x: SLOTS[i], y: SIDING, fromX: SLOTS[i], t: 0, toX: slotX, bounce: !c.rhyme };
+    tone(400, .08, 'square', .06);
+}
+function carSlotX(n) { return trainX - 190 - n * 170; }
+
+// ---------- input ----------
+canvas.addEventListener('pointerdown', (e) => {
+    if (stage === 'menu') return;
+    const p = toWorld(e);
+    for (let i = 0; i < 3; i++) {
+        const c = siding[i];
+        if (c && Math.abs(p.x - SLOTS[i]) < 85 && p.y > SIDING - 150 && p.y < SIDING + 30) { tapCar(i); return; }
+    }
+    if (p.x > trainX - 90 && p.x < trainX + 110 && p.y > TRACK - 190 && p.y < TRACK) { whistle(); say(fam.head[0]); return; }
+    say(prompt());
+});
+document.getElementById('start-btn').addEventListener('click', () => {
+    document.getElementById('start').classList.add('hidden');
+    newTrain();
+});
+document.getElementById('speak').addEventListener('click', () => say(prompt()));
+
+// ---------- update ----------
+function update(dt) {
+    idle += dt;
+    const d = trainTarget - trainX;
+    const sp = stage === 'leave' ? 420 : 300;
+    if (Math.abs(d) > 1) {
+        trainX += Math.sign(d) * Math.min(Math.abs(d), sp * dt);
+        if (Math.random() < dt * 8) puffs.push({ x: trainX + 40, y: TRACK - 200, r: 14, life: 1.6 });
+    } else if (stage === 'arrive') {
+        stage = 'play';
+        fillSiding();
+        say(`Choo choo! This train is for ${fam.head[0]}! What rhymes with ${fam.head[0]}?`);
+    }
+    if (stage === 'leave' && trainX > 1700) { trains++; newTrain(); }
+    siding.forEach(c => { if (c) c.y = Math.min(0, c.y + dt * 400); });
+
+    if (moving) {
+        moving.t += dt / (moving.bounce ? 1.2 : .9);
+        const tt = Math.min(1, moving.t);
+        if (!moving.bounce) {
+            moving.x = moving.fromX + (moving.toX - moving.fromX) * tt;
+            moving.y = SIDING + (TRACK - SIDING) * Math.sin(tt * Math.PI / 2);
+            if (tt >= 1) {
+                attached.push({ w: moving.c.w, color: moving.c.color });
+                clack(); ding(); stars++;
+                say(`${fam.head[0]}... ${moving.c.w[0]}! They rhyme!`);
+                msg = { text: `${fam.head[0]} · ${moving.c.w[0]}`, life: 2 };
+                for (let i = 0; i < 16; i++) particles.push({ x: moving.toX, y: TRACK - 80, vx: (Math.random() - .5) * 300, vy: -Math.random() * 300, life: 1, c: '#FFD93D' });
+                moving = null;
+                if (attached.length >= need) {
+                    setTimeout(() => {
+                        stage = 'leave'; trainTarget = 2200; whistle(); fanfare();
+                        say(`All aboard! ${[fam.head[0], ...attached.map(a => a.w[0])].join(', ')}!`);
+                        rain([fam.head[1], ...attached.map(a => a.w[1]), '🎶', '⭐'], 26);
+                    }, 1600);
+                } else setTimeout(() => { fillSiding(); }, 900);
+            }
+        } else {
+            // roll down toward the train, bonk the bumper, spring back up
+            const half = Math.min(1, tt * 2);
+            const back = Math.max(0, tt * 2 - 1);
+            const midX = moving.fromX + (carSlotX(attached.length) - moving.fromX) * .45;
+            if (tt < .5) { moving.x = moving.fromX + (midX - moving.fromX) * half; moving.y = SIDING + 120 * half; }
+            else {
+                if (!moving.boinged) {
+                    moving.boinged = true; boing();
+                    say(`${fam.head[0]}... ${moving.c.w[0]}. No rhyme! Boing!`);
+                }
+                moving.x = midX + (moving.fromX - midX) * back;
+                moving.y = SIDING + 120 * (1 - back) - Math.sin(back * Math.PI) * 140;
+                moving.spin = back * Math.PI * 2;
+            }
+            if (tt >= 1) {
+                moving = null;
+                setTimeout(() => { fillSiding(); setTimeout(() => say(prompt()), 300); }, 300);
+            }
+        }
+    }
+    puffs.forEach(p => { p.y -= 40 * dt; p.x -= 30 * dt; p.r += 14 * dt; p.life -= dt; }); puffs = puffs.filter(p => p.life > 0);
+    particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 500 * dt; p.life -= dt; }); particles = particles.filter(p => p.life > 0);
+    if (msg) { msg.life -= dt; if (msg.life <= 0) msg = null; }
+    if (idle > 10 && stage === 'play' && !moving) { idle = 0; say(prompt()); }
+}
+function rain(emojis, n) {
+    for (let i = 0; i < n; i++) setTimeout(() => {
+        const e = document.createElement('div');
+        e.className = 'rain'; e.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        e.style.left = Math.random() * 95 + 'vw'; e.style.animationDuration = (2 + Math.random() * 2) + 's';
+        document.body.appendChild(e); setTimeout(() => e.remove(), 4200);
+    }, i * 60);
+}
+
+// ---------- draw ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function emoji(e, x, y, size) { ctx.fillStyle = '#000'; ctx.font = `${size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(e, x, y); }
+function word(text, x, y, size, color = '#1c5d99') {
+    ctx.font = `bold ${size}px 'Arial Rounded MT Bold', Arial, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = size * .18; ctx.strokeStyle = '#fff'; ctx.strokeText(text, x, y);
+    ctx.fillStyle = color; ctx.fillText(text, x, y);
+}
+function rails(y) {
+    ctx.fillStyle = '#8d6e63';
+    for (let x = -500; x < VW + 500; x += 34) ctx.fillRect(x, y + 4, 14, 14);
+    ctx.fillStyle = '#9e9e9e'; ctx.fillRect(-500, y, VW + 1000, 6);
+}
+function drawWagon(x, y, w, color, glow, spin = 0) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(spin);
+    if (glow) { ctx.fillStyle = 'rgba(255,215,64,.45)'; ctx.beginPath(); ctx.ellipse(0, -70, 100 + Math.sin(t * 6) * 6, 85, 0, 0, 7); ctx.fill(); }
+    ctx.fillStyle = color; rr(-75, -70, 150, 54, 10); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.fillRect(-75, -70, 150, 8);
+    emoji(w[1], 0, -100, 70);
+    ctx.fillStyle = 'rgba(255,255,255,.9)'; rr(-62, -62, 124, 38, 10); ctx.fill();
+    word(w[0], 0, -42, w[0].length > 5 ? 22 : 28, '#1c5d99');
+    ctx.fillStyle = '#333'; [-45, 45].forEach(wx => { ctx.beginPath(); ctx.arc(wx, -10, 14, 0, 7); ctx.fill(); });
+    ctx.fillStyle = '#555'; ctx.fillRect(-90, -30, 15, 6); ctx.fillRect(75, -30, 15, 6);
+    ctx.restore();
+}
+function drawEngine(x) {
+    const y = TRACK;
+    ctx.save(); ctx.translate(x, y);
+    ctx.fillStyle = '#c62828'; rr(-90, -150, 70, 130, 10); ctx.fill();            // cab
+    ctx.fillStyle = '#bde0fe'; rr(-78, -138, 46, 40, 6); ctx.fill();
+    ctx.fillStyle = '#263238'; rr(-100, -164, 90, 18, 6); ctx.fill();               // roof
+    ctx.fillStyle = '#1e88e5'; rr(-24, -110, 130, 90, 30); ctx.fill();             // boiler
+    ctx.fillStyle = '#263238'; ctx.fillRect(30, -150, 26, 44); ctx.fillRect(22, -158, 42, 12);   // chimney
+    ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(110, -70, 10, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ffb703'; ctx.beginPath(); ctx.moveTo(100, -20); ctx.lineTo(140, -6); ctx.lineTo(100, -6); ctx.fill();   // cowcatcher
+    ctx.fillStyle = '#222'; [-60, 0, 60].forEach(wx => { ctx.beginPath(); ctx.arc(wx, -12, 20, 0, 7); ctx.fill(); ctx.fillStyle = '#aaa'; ctx.beginPath(); ctx.arc(wx, -12, 7, 0, 7); ctx.fill(); ctx.fillStyle = '#222'; });
+    // the engine's picture
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(40, -66, 40, 0, 7); ctx.fill();
+    emoji(fam.head[1], 40, -66, 56);
+    word(fam.head[0], 40, -200, 44, '#c62828');
+    ctx.restore();
+}
+function draw() {
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    g.addColorStop(0, '#6ec6ff'); g.addColorStop(1, '#d7f0ff');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+    ctx.fillStyle = '#8bc34a'; ctx.fillRect(-2000, SIDING + 20, VW + 4000, 2000);
+    ctx.fillStyle = '#7cb342'; ctx.fillRect(-2000, TRACK + 20, VW + 4000, 2000);
+    // hills
+    ctx.fillStyle = '#9ad46b';
+    ctx.beginPath(); ctx.moveTo(-500, SIDING + 22);
+    for (let x = -500; x <= VW + 500; x += 20) ctx.lineTo(x, SIDING - 30 - Math.sin(x / 160) * 25);
+    ctx.lineTo(VW + 500, SIDING + 22); ctx.fill();
+    rails(SIDING); rails(TRACK);
+    if (!fam) return;
+
+    // waiting cars on the siding
+    const rightOne = siding.findIndex(c => c && c.rhyme);
+    siding.forEach((c, i) => { if (c) drawWagon(SLOTS[i], SIDING + c.y, c.w, c.color, stage === 'play' && !moving && idle > 7 && i === rightOne); });
+    // train
+    puffs.forEach(p => { ctx.globalAlpha = Math.max(0, p.life / 1.6) * .8; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill(); });
+    ctx.globalAlpha = 1;
+    attached.forEach((a, i) => drawWagon(carSlotX(i), TRACK, a.w, a.color, false));
+    drawEngine(trainX);
+    if (moving) drawWagon(moving.x, moving.y, moving.c.w, moving.c.color, false, moving.spin || 0);
+    if (stage === 'play' && !moving && idle > 4 && rightOne >= 0) emoji('👆', SLOTS[rightOne] + 40, SIDING + 50 + Math.sin(t * 6) * 8, 50);
+    particles.forEach(p => { ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7); ctx.fill(); });
+    ctx.globalAlpha = 1;
+    if (msg) { ctx.globalAlpha = Math.min(1, msg.life); word(msg.text, 500, 60, 54, '#ff4f9a'); ctx.globalAlpha = 1; }
+    ctx.fillStyle = '#1c5d99'; ctx.font = 'bold 30px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(`⭐ ${stars}`, 930, 100);
+}
+
+function loop(ts) {
+    const dt = last ? Math.min((ts - last) / 1000, .05) : .016;
+    last = ts; t += dt;
+    if (stage !== 'menu') update(dt);
+    draw();
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
+document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
+</script>
+<script src="games.js"></script>
+</body>
+</html>

@@ -25,6 +25,9 @@ My son always wants to 'help' with Dada's Work and type on the computer. I had t
 | 🥕 **Feed the Animals** | Drag each food to the animal who eats it (or just tap the animal). Wrong guesses get a polite "no thank you!" |
 | 🛁 **Bubble Pop** | Five games in the tub: ABC (big letters), abc (little letters), A → a (big finds little), 1 → 100 (1 to 20, then 30, 40 … 100, remembers where you left off), and 🐱 cat (pick the bubble whose word matches the picture). The right bubbles glow if you need a hint |
 | 🚗 **Car Wash Words** | Each wash arch sprays one letter sound onto the car, then the blower blends them: "sss… uh… nnn… sun!" Pick the picture you made and the car drives off with it |
+| 🚂 **Rhyme Train** | The engine carries a picture (🐱 cat). Tap the car on the siding that rhymes and it hooks on ("cat… hat!"); the others boing off the bumper. A full train chugs away |
+| 🛻 **Monster Truck Jumps** | Tap once for each part of the word (di… no… saur!) and the truck crushes a car on every jump. Then: how many jumps was that? |
+| 🚛 **Garbage Truck Words** | Find the sight word on the trash cans ("the", "and", "see"…). The truck dumps every can you tap, but the right word gets gold sparkles. Ten words and it's off to the dump; new words get added each round |
 | 🚒 **Fire Truck** | Race to the fire and spray it out |
 | 🚗 **Drive & Collect** | Touch-driving game for the littlest players |
 | 🏎️ **Racer** | Tap left or right to change lanes. Grab stars, hit ⚡ to zoom, bonk cones, pass three friendly cars. Always finishes 1st 🏆 |

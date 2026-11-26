@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>🗑️ Garbage Truck Words</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+        html, body { width: 100%; height: 100%; overflow: hidden; touch-action: none; position: fixed; background: #8fd3ff;
+            font-family: 'Arial Rounded MT Bold', 'Chalkboard SE', 'Comic Sans MS', sans-serif; }
+        canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+        .screen { position: fixed; inset: 0; z-index: 1500; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 18px; background: rgba(46, 160, 67, .93); text-align: center; padding: 20px; }
+        .screen.hidden { display: none; }
+        .screen h1 { font-size: clamp(38px, 8vw, 76px); color: #fff; text-shadow: 0 4px 0 #1b5e20; }
+        .screen p { font-size: clamp(18px, 3.5vw, 26px); color: #fff; }
+        .big-btn { font: inherit; font-size: clamp(26px, 5vw, 38px); padding: 16px 52px; border-radius: 50px; border: 5px solid #fff;
+            background: linear-gradient(135deg, #ffb703, #fb8500); color: #fff; cursor: pointer; box-shadow: 0 8px 0 #b55d00; }
+        #speak { position: fixed; top: 12px; right: 12px; z-index: 20; width: 48px; height: 48px; border-radius: 50%; border: 2px solid rgba(255,255,255,.6);
+            background: rgba(0,0,0,.45); color: #fff; font-size: 22px; cursor: pointer; }
+        .rain { position: fixed; top: -60px; font-size: clamp(30px, 6vw, 56px); pointer-events: none; z-index: 1400; animation: fall linear forwards; }
+        @keyframes fall { to { transform: translateY(115vh) rotate(360deg); } }
+        #game-nav { position: fixed; top: 12px; left: 12px; z-index: 2000; }
+        #nav-toggle { background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.6); color: #fff; font-size: 24px; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; }
+        #nav-overlay { position: fixed; inset: 0; background: rgba(10,10,30,.95); z-index: 2001; display: flex; align-items: center; justify-content: center; transition: opacity .3s; }
+        #nav-overlay.hidden { opacity: 0; pointer-events: none; }
+        #nav-close { position: absolute; top: 24px; right: 24px; background: none; border: none; color: #fff; font-size: 40px; cursor: pointer; }
+        .nav-links { display: flex; flex-direction: column; gap: 12px; text-align: center; max-height: 85vh; overflow-y: auto; padding: 10px; }
+        .nav-links a { color: #fff; text-decoration: none; font-size: 22px; padding: 10px 30px; border-radius: 30px; background: rgba(255,255,255,.1); }
+    </style>
+</head>
+<body>
+    <canvas id="c"></canvas>
+    <button id="speak" aria-label="Say it again">🔊</button>
+    <div id="game-nav"><button id="nav-toggle" aria-label="Games">☰</button></div>
+    <div id="nav-overlay" class="hidden">
+        <button id="nav-close" aria-label="Close">✕</button>
+        <div class="nav-links"><!-- filled from games.js --></div>
+    </div>
+    <div id="start" class="screen">
+        <h1>🚛 Garbage Truck Words</h1>
+        <p>Every trash can has a word on it.</p>
+        <p>Find the word and the truck dumps it! (It dumps all of them, it's hungry.)</p>
+        <button class="big-btn" id="start-btn">Start the Route!</button>
+    </div>
+
+<script>
+// =============================================================
+// GARBAGE TRUCK WORDS: sight words
+//  "Find the word SEE!" Four cans on the curb, each with a word.
+//  Tap any can: the truck drives over, the arm grabs it and dumps
+//  it (garbage trucks dump everything).
+//   - the right word: gold sparkles, a star, "S-E-E, see!"
+//   - another word: the truck reads it ("That one says GO!")
+//  After a pause the right can glows. Ten words = the truck drives
+//  to the dump for a big celebration.
+// =============================================================
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const VW = 1000, VH = 600, CURB = 430, ROAD = 520;
+// Kindergarten sight words, easiest first (we start with the first 12 and add more)
+const SIGHT = ['the', 'a', 'I', 'and', 'see', 'go', 'my', 'is', 'can', 'to', 'we', 'me', 'up', 'like', 'you', 'it', 'in', 'look',
+    'at', 'he', 'no', 'yes', 'big', 'red', 'run', 'said', 'play', 'here', 'one', 'two', 'not', 'she', 'on', 'come'];
+const CAN_X = [240, 420, 600, 780];
+const CAN_COLORS = ['#2e7d32', '#1565c0', '#6d4c41', '#455a64'];
+const TRASH = ['🍌', '🥫', '🧦', '📰', '🍕', '🥤', '🦴', '🍎', '🧃', '📦', '🥚', '🧸'];
+const GOAL = 10;
+let W, H, k, ox, oy, t = 0, last = 0;
+
+let target = null, cans = [], stage = 'menu';   // pick | drive | grab | dump | back | celebrate
+let truck = { x: 80, tx: 80, arm: 0 }, active = null, found = 0, stars = 0, wrongs = 0;
+let idle = 0, flying = [], particles = [], msg = null, level = 12, recent = [];
+
+// ---------- sound ----------
+let AC = null;
+function tone(f, d = .15, type = 'triangle', v = .18, slideTo, delay = 0) {
+    try {
+        AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+        if (AC.state === 'suspended') AC.resume();
+        const n = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+        o.type = type; o.frequency.setValueAtTime(f, n);
+        if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, n + d);
+        g.gain.setValueAtTime(v, n); g.gain.exponentialRampToValueAtTime(.001, n + d);
+        o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d);
+    } catch (e) { }
+}
+function say(text, rate = .85) {
+    try {
+        if (!('speechSynthesis' in window)) return;
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text); u.rate = rate; u.pitch = 1.1;
+        speechSynthesis.speak(u);
+    } catch (e) { }
+}
+const beep = () => { [0, .3, .6].forEach(d => tone(1000, .15, 'square', .06, null, d)); };   // backing-up beeps
+const crash = () => { tone(140, .3, 'sawtooth', .1, 60); tone(400, .15, 'square', .05, 200, .05); };
+const ding = () => { tone(988, .12); tone(1319, .2, 'triangle', .18, null, .08); };
+const fanfare = () => [523, 659, 784, 1046, 784, 1046].forEach((f, i) => tone(f, .3, 'triangle', .18, null, i * .13));
+const spell = (w) => w.toUpperCase().split('').join(', ');
+// speech engines read "I" and "a" oddly on their own; give them a nudge
+const sayWord = (w) => w === 'a' ? 'ay' : w === 'I' ? 'eye' : w;
+
+function resize() {
+    const DPR = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    k = Math.min(W / VW, H / VH);
+    ox = (W - VW * k) / 2; oy = (H - VH * k) / 2;
+    ctx.setTransform(DPR * k, 0, 0, DPR * k, DPR * ox, DPR * oy);
+}
+addEventListener('resize', resize);
+resize();
+const toWorld = (e) => ({ x: (e.clientX - ox) / k, y: (e.clientY - oy) / k });
+
+// ---------- flow ----------
+const pickFrom = (a) => a[Math.floor(Math.random() * a.length)];
+function wordPool() { return SIGHT.slice(0, Math.min(SIGHT.length, level)); }
+function newCan(i, word) {
+    return { x: CAN_X[i], word, color: pickFrom(CAN_COLORS), trash: pickFrom(TRASH), y: 0, gone: false, drop: -300 };
+}
+function newTarget() {
+    const pool = wordPool().filter(w => !recent.includes(w));
+    target = pickFrom(pool);
+    recent.push(target); if (recent.length > 4) recent.shift();
+    wrongs = 0; idle = 0;
+    // make sure the target is on one of the cans
+    if (!cans.some(c => c.word === target)) {
+        const i = Math.floor(Math.random() * 4);
+        cans[i] = newCan(i, target);
+    }
+    stage = 'pick';
+    say(`Find the word ${sayWord(target)}!`);
+}
+function refillCan(i) {
+    const used = cans.map(c => c && c.word);
+    let w; do { w = pickFrom(wordPool()); } while (used.includes(w));
+    cans[i] = newCan(i, w);
+}
+function tapCan(i) {
+    if (stage !== 'pick') return;
+    idle = 0;
+    active = i;
+    truck.tx = CAN_X[i] - 150;
+    stage = 'drive';
+    tone(200, .2, 'sawtooth', .06, 260);
+}
+function afterDump() {
+    const c = cans[active];
+    const right = c.word === target;
+    if (right) {
+        found++; stars++;
+        ding();
+        say(`${spell(target)}. ${sayWord(target)}! You found it!`, .8);
+        msg = { text: `⭐ ${target} ⭐`, life: 2.4 };
+        for (let i = 0; i < 24; i++) particles.push({ x: truck.x + 40, y: 300, vx: (Math.random() - .5) * 400, vy: -Math.random() * 400, life: 1.2, c: '#FFD93D' });
+    } else {
+        wrongs++;
+        tone(300, .15, 'sine', .1, 200);
+        say(`Yum! That one says ${sayWord(c.word)}. Can you find ${sayWord(target)}?`);
+        msg = { text: c.word, life: 1.6 };
+    }
+    refillCan(active);
+    if (right) {
+        if (found >= GOAL) setTimeout(celebrate, 2200);
+        else setTimeout(newTarget, 2400);
+        stage = 'wait';
+    } else stage = 'pick';
+    if (!right && wrongs >= 2) idle = 99;   // two misses: show the glow right away
+}
+function celebrate() {
+    stage = 'celebrate';
+    truck.tx = 1300; beep();
+    fanfare();
+    say(`Ten words! The truck is full! Off to the dump!`);
+    rain(['🚛', '⭐', '🗑️', '🎉', ...TRASH.slice(0, 4)], 34);
+    setTimeout(() => {
+        found = 0; level = Math.min(SIGHT.length, level + 6);   // a few new words each time
+        truck.x = -200; truck.tx = 80;
+        cans = CAN_X.map((x, i) => null); CAN_X.forEach((x, i) => refillCan(i));
+        newTarget();
+    }, 4500);
+}
+function rain(emojis, n) {
+    for (let i = 0; i < n; i++) setTimeout(() => {
+        const e = document.createElement('div');
+        e.className = 'rain'; e.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        e.style.left = Math.random() * 95 + 'vw'; e.style.animationDuration = (2 + Math.random() * 2) + 's';
+        document.body.appendChild(e); setTimeout(() => e.remove(), 4200);
+    }, i * 60);
+}
+
+// ---------- input ----------
+canvas.addEventListener('pointerdown', (e) => {
+    if (stage === 'menu') return;
+    const p = toWorld(e);
+    for (let i = 0; i < 4; i++) {
+        if (Math.abs(p.x - CAN_X[i]) < 75 && p.y > CURB - 190 && p.y < CURB + 30) { tapCan(i); return; }
+    }
+    if (p.x > truck.x - 150 && p.x < truck.x + 150 && p.y > ROAD - 200) { tone(330, .3, 'square', .1); tone(262, .3, 'square', .1, null, .3); return; }
+    if (stage === 'pick') say(`Find the word ${sayWord(target)}!`);
+});
+document.getElementById('start-btn').addEventListener('click', () => {
+    document.getElementById('start').classList.add('hidden');
+    cans = [null, null, null, null];
+    CAN_X.forEach((x, i) => refillCan(i));
+    newTarget();
+});
+document.getElementById('speak').addEventListener('click', () => { if (target) say(`Find the word ${sayWord(target)}!`); });
+
+// ---------- update ----------
+function update(dt) {
+    idle += dt;
+    cans.forEach(c => { if (c) c.drop = Math.min(0, c.drop + dt * 900); });
+    const d = truck.tx - truck.x;
+    if (Math.abs(d) > 2) truck.x += Math.sign(d) * Math.min(Math.abs(d), (stage === 'celebrate' ? 500 : 420) * dt);
+    else if (stage === 'drive') { stage = 'grab'; truck.armT = 0; tone(500, .1, 'square', .06); }
+
+    if (stage === 'grab') {
+        // arm reaches out, lifts the can over the truck and tips it
+        truck.armT += dt / 1.6;
+        truck.arm = Math.min(1, truck.armT);
+        if (truck.armT > .55 && !cans[active].dumped) {
+            cans[active].dumped = true; crash();
+            const c = cans[active];
+            for (let i = 0; i < 4; i++) flying.push({ e: i === 0 ? c.trash : pickFrom(TRASH), x: truck.x + 60, y: 250, vx: -60 + Math.random() * 40, vy: -120 - Math.random() * 80, life: 1 });
+        }
+        if (truck.armT >= 1.25) { truck.arm = 0; afterDump(); }
+    }
+    flying.forEach(f => { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 600 * dt; f.life -= dt; }); flying = flying.filter(f => f.life > 0);
+    particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 600 * dt; p.life -= dt; }); particles = particles.filter(p => p.life > 0);
+    if (msg) { msg.life -= dt; if (msg.life <= 0) msg = null; }
+    if (idle > 9 && idle < 50 && stage === 'pick') { idle = 50; say(`${sayWord(target)}! Look for the glowing can!`); }
+}
+
+// ---------- draw ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function emoji(e, x, y, size) { ctx.fillStyle = '#000'; ctx.font = `${size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(e, x, y); }
+function text(s, x, y, size, color, stroke = '#fff') {
+    ctx.font = `bold ${size}px 'Arial Rounded MT Bold', Arial, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = size * .18; ctx.strokeStyle = stroke; ctx.strokeText(s, x, y);
+    ctx.fillStyle = color; ctx.fillText(s, x, y);
+}
+function drawCan(c, i, x, y, tilt = 0) {
+    const glow = stage === 'pick' && idle > 8 && c.word === target;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(tilt);
+    if (glow) { ctx.fillStyle = 'rgba(255,215,64,.5)'; ctx.beginPath(); ctx.ellipse(0, -70, 85 + Math.sin(t * 6) * 6, 105, 0, 0, 7); ctx.fill(); }
+    ctx.fillStyle = c.color;
+    ctx.beginPath(); ctx.moveTo(-50, -150); ctx.lineTo(50, -150); ctx.lineTo(42, 0); ctx.lineTo(-42, 0); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.fillRect(-55, -160, 110, 16);
+    ctx.fillStyle = shade(c.color); rr(-58, -168, 116, 18, 6); ctx.fill();   // lid
+    if (!c.dumped) emoji(c.trash, 22, -178, 30);
+    ctx.fillStyle = '#fff'; rr(-44, -112, 88, 64, 12); ctx.fill();
+    text(c.word, 0, -80, c.word.length > 3 ? 30 : 40, '#1b1b1b');
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(-30, 2, 9, 0, 7); ctx.arc(30, 2, 9, 0, 7); ctx.fill();
+    ctx.restore();
+}
+function shade(hex) { const n = parseInt(hex.slice(1), 16); const f = v => Math.max(0, v - 30); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; }
+function drawTruck() {
+    const x = truck.x, y = ROAD;
+    ctx.save(); ctx.translate(x, y);
+    // body (hopper) + cab on the right
+    ctx.fillStyle = '#43a047'; rr(-150, -170, 220, 130, 14); ctx.fill();
+    ctx.fillStyle = '#2e7d32'; for (let i = 0; i < 5; i++) ctx.fillRect(-138 + i * 42, -160, 8, 110);
+    ctx.fillStyle = '#ffb703'; rr(70, -140, 90, 100, 14); ctx.fill();
+    ctx.fillStyle = '#bde0fe'; rr(100, -128, 48, 40, 8); ctx.fill();
+    ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(156, -56, 8, 0, 7); ctx.fill();
+    ctx.fillStyle = '#37474f'; rr(-160, -50, 330, 20, 6); ctx.fill();
+    [-110, -40, 120].forEach(wx => { ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(wx, -24, 26, 0, 7); ctx.fill(); ctx.fillStyle = '#bbb'; ctx.beginPath(); ctx.arc(wx, -24, 10, 0, 7); ctx.fill(); });
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('♻️ CITY', -40, -100);
+    ctx.restore();
+    // the side arm (reaches toward the curb, lifts the can up over the hopper)
+    if (stage === 'grab' && cans[active]) {
+        const a = truck.arm;
+        const c = cans[active];
+        const up = Math.min(1, a * 1.8), tip = Math.max(0, Math.min(1, (a - .45) * 3)), down = Math.max(0, (a - .75) * 4);
+        const cx = c.x, cy = CURB - (up - down) * 160;
+        ctx.strokeStyle = '#616161'; ctx.lineWidth = 14; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(x + 40, ROAD - 120); ctx.lineTo(cx, cy - 70); ctx.stroke();
+        drawCan(c, active, cx, cy, -tip * 2.2 * (1 - down));
+    }
+}
+function draw() {
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    g.addColorStop(0, '#6ec6ff'); g.addColorStop(1, '#d7f0ff');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+    // houses
+    ['#ffcdb2', '#bde0fe', '#caffbf', '#ffd6a5', '#e2c2ff'].forEach((col, i) => {
+        const hx = 120 + i * 190;
+        ctx.fillStyle = col; ctx.fillRect(hx - 70, 160, 140, 120);
+        ctx.fillStyle = '#8d6e63'; ctx.beginPath(); ctx.moveTo(hx - 85, 165); ctx.lineTo(hx, 100); ctx.lineTo(hx + 85, 165); ctx.fill();
+        ctx.fillStyle = '#6d4c41'; ctx.fillRect(hx - 15, 225, 30, 55);
+        ctx.fillStyle = '#fff'; ctx.fillRect(hx - 55, 185, 28, 26); ctx.fillRect(hx + 27, 185, 28, 26);
+    });
+    ctx.fillStyle = '#7cb342'; ctx.fillRect(-2000, 280, VW + 4000, CURB - 280);
+    ctx.fillStyle = '#bdbdbd'; ctx.fillRect(-2000, CURB, VW + 4000, 20);   // sidewalk/curb
+    ctx.fillStyle = '#5c5c5c'; ctx.fillRect(-2000, CURB + 20, VW + 4000, 2000);
+    ctx.fillStyle = '#fff'; for (let x = -40; x < VW + 40; x += 90) ctx.fillRect(x, ROAD + 30, 50, 8);
+
+    cans.forEach((c, i) => { if (c && !(stage === 'grab' && i === active)) drawCan(c, i, c.x, CURB + c.drop); });
+    drawTruck();
+    flying.forEach(f => { ctx.globalAlpha = Math.max(0, f.life); emoji(f.e, f.x, f.y, 34); }); ctx.globalAlpha = 1;
+    particles.forEach(p => { ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7); ctx.fill(); });
+    ctx.globalAlpha = 1;
+
+    if (target && stage !== 'celebrate') {
+        // the job card
+        ctx.fillStyle = 'rgba(255,255,255,.94)'; rr(330, 14, 340, 76, 22); ctx.fill();
+        ctx.strokeStyle = '#43a047'; ctx.lineWidth = 5; ctx.stroke();
+        ctx.fillStyle = '#2e7d32'; ctx.font = 'bold 24px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText('Find:', 352, 52);
+        text(target, 540, 52, 52, '#e63946');
+        if (stage === 'pick' && idle > 8) {
+            const i = cans.findIndex(c => c && c.word === target);
+            if (i >= 0) emoji('👆', CAN_X[i] + 40, CURB + 40 + Math.sin(t * 6) * 8, 50);
+        }
+    }
+    // progress: 10 bags
+    for (let i = 0; i < GOAL; i++) {
+        ctx.globalAlpha = i < found ? 1 : .25;
+        emoji('🛍️', 275 + i * 50, 118, 32);
+    }
+    ctx.globalAlpha = 1;
+    if (msg) { ctx.globalAlpha = Math.min(1, msg.life); text(msg.text, 500, 320, 70, '#ffd23f', '#2e7d32'); ctx.globalAlpha = 1; }
+}
+
+function loop(ts) {
+    const dt = last ? Math.min((ts - last) / 1000, .05) : .016;
+    last = ts; t += dt;
+    if (stage !== 'menu') update(dt);
+    draw();
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
+document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
+</script>
+<script src="games.js"></script>
+</body>
+</html>
