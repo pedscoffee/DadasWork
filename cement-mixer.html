@@ -339,7 +339,7 @@ function rain(emojis) {
 
 // ---------- drawing ----------
 function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
-function emoji(e, x, y, size) { ctx.font = `${size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(e, x, y); }
+function emoji(e, x, y, size) { ctx.fillStyle = '#000'; ctx.font = `${size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(e, x, y); }
 
 function drawSideScene() {
     // sky fills the whole screen (even outside the 1000x600 box)

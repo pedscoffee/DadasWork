@@ -305,7 +305,7 @@ function update(dt) {
 
 // ---------- draw ----------
 function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
-function emoji(e, x, y, size, base = 'middle') { ctx.font = `${size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = base; ctx.fillText(e, x, y); }
+function emoji(e, x, y, size, base = 'middle') { ctx.fillStyle = '#000'; ctx.font = `${size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = base; ctx.fillText(e, x, y); }
 function windowPiece(sh, x, y, r, glow) {
     JobSite.shapePath(ctx, sh, x, y, r);
     ctx.fillStyle = '#bde0fe'; ctx.fill();

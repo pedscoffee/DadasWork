@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="icon" href="favicon.ico">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
-    <title>🛁 Bubble Pop Letters</title>
+    <title>🛁 Bubble Pop</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
         html, body { width: 100%; height: 100%; overflow: hidden; touch-action: none; position: fixed; font-family: 'Arial Rounded MT Bold', 'Chalkboard SE', 'Comic Sans MS', sans-serif; background: #bfe9ff; }
@@ -36,6 +36,15 @@
         .screen p { font-size: clamp(18px, 3.5vw, 26px); color: #1c5d99; }
         .big-btn { font: inherit; font-size: clamp(24px, 5vw, 36px); padding: 16px 48px; border-radius: 50px; border: 5px solid #fff; background: linear-gradient(135deg, #ff7eb3, #ff4f9a); color: #fff; cursor: pointer; box-shadow: 0 8px 0 #c2185b; }
         .big-btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #c2185b; }
+        #modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; width: min(760px, 94vw); }
+        .mode-btn { font: inherit; font-size: clamp(22px, 4.5vw, 34px); padding: 14px 10px; border-radius: 26px; border: 5px solid #fff; cursor: pointer;
+            background: linear-gradient(135deg, #7fd3ff, #4fb3ff); color: #fff; box-shadow: 0 7px 0 #1c7ed6; text-shadow: 0 2px 0 rgba(0,0,0,.2); }
+        .mode-btn small { display: block; font-size: clamp(12px, 2.3vw, 16px); opacity: .9; }
+        .mode-btn.words { background: linear-gradient(135deg, #ff9f43, #ff6b6b); box-shadow: 0 7px 0 #c0392b; }
+        .mode-btn:active { transform: translateY(4px); }
+        #goal-pic { font-size: clamp(44px, 10vw, 80px); line-height: 1; display: none; }
+        #modes-btn { position: fixed; top: 12px; right: 12px; z-index: 20; border: 2px solid rgba(255,255,255,.7); background: rgba(28,93,153,.6); color: #fff;
+            border-radius: 24px; padding: 8px 14px; font: inherit; font-size: 16px; cursor: pointer; display: none; }
         .rain { position: fixed; top: -60px; font-size: clamp(30px, 6vw, 56px); pointer-events: none; z-index: 1400; animation: fall linear forwards; }
         @keyframes fall { to { transform: translateY(115vh) rotate(360deg); } }
     </style>
@@ -48,6 +57,7 @@
         <div id="goal">
             <span id="goal-text">Pop the</span>
             <span id="goal-letter">A</span>
+            <span id="goal-pic"></span>
             <div id="dots"></div>
         </div>
     </div>
@@ -58,34 +68,60 @@
         <div class="nav-links"><!-- filled from games.js --></div>
     </div>
 
+    <button id="modes-btn">🫧 Games</button>
+
     <div id="start" class="screen">
         <h1>🛁 Bubble Pop! 🦆</h1>
-        <p>Pop the bubbles with the right letter!</p>
-        <p>Tap bubbles — or press the letter on the keyboard.</p>
-        <button class="big-btn" id="start-btn">Splash! 💦</button>
+        <p>What do you want to pop?</p>
+        <div id="modes">
+            <button class="mode-btn" data-mode="upper">ABC<small>big letters</small></button>
+            <button class="mode-btn" data-mode="lower">abc<small>little letters</small></button>
+            <button class="mode-btn" data-mode="match">A → a<small>big finds little</small></button>
+            <button class="mode-btn" data-mode="numbers">1 → 100<small>numbers</small></button>
+            <button class="mode-btn words" data-mode="words">🐱 cat<small>read the word</small></button>
+        </div>
     </div>
 
     <script>
         // ============================================
-        // BUBBLE POP LETTERS
+        // BUBBLE POP
+        // Modes: big letters, little letters, big-finds-little,
+        // numbers (1-20 then 30, 40 ... 100, in order, remembered),
+        // and Words (3 bubbles, find the word that matches the picture).
+        // Any bubble pops (that's the fun part); the right ones count.
+        // If the right one hasn't been popped for a while, it glows,
+        // so not knowing the skill never stops the game.
         // ============================================
         const canvas = document.getElementById('c');
         const ctx = canvas.getContext('2d');
         const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        const POPS_PER_LETTER = 5;
+        const NUMBERS = [...Array.from({ length: 20 }, (_, i) => i + 1), 30, 40, 50, 60, 70, 80, 90, 100];
+        const WORDS = [
+            ['cat', '🐱'], ['dog', '🐶'], ['pig', '🐷'], ['hen', '🐔'], ['fox', '🦊'], ['bat', '🦇'], ['bug', '🐛'], ['rat', '🐀'],
+            ['cow', '🐮'], ['bee', '🐝'], ['owl', '🦉'], ['ant', '🐜'], ['ram', '🐏'], ['sun', '☀️'], ['hat', '🎩'], ['bus', '🚌'],
+            ['bed', '🛏️'], ['box', '📦'], ['map', '🗺️'], ['pen', '🖊️'], ['web', '🕸️'], ['van', '🚐'], ['jet', '✈️'],
+            ['egg', '🥚'], ['pie', '🥧'], ['key', '🔑'], ['cup', '☕'], ['car', '🚗']
+        ];
+        const WORD_ROUNDS = 10;
+        const MODES = {
+            upper: { pops: 5 }, lower: { pops: 5 }, match: { pops: 5 }, numbers: { pops: 3 }, words: {}
+        };
 
         let W, H, DPR, tubTop, bubbleR;
-        let bubbles = [], bits = [];
-        let target = 'A', got = 0, playing = false, spawnTimer = 0, last = 0, t = 0;
-        let letterQueue = [];
+        let bubbles = [], bits = [], floaters = [];
+        let mode = 'upper', target = 'A', got = 0, playing = false, spawnTimer = 0, last = 0, t = 0;
+        let queue = [], sinceRight = 0, hinted = false;
+        let numIndex = 0;
+        let wordRound = 0, wordStars = 0, wordSet = null, wordPending = false;
+        try { numIndex = +localStorage.getItem('bubble-num-index') || 0; } catch (e) { }
 
         // ---------- Sound & speech ----------
         let AC = null;
-        function tone(freq, dur = 0.15, type = 'sine', vol = 0.2, slideTo) {
+        function tone(freq, dur = 0.15, type = 'sine', vol = 0.2, slideTo, delay = 0) {
             try {
                 AC = AC || new (window.AudioContext || window.webkitAudioContext)();
                 if (AC.state === 'suspended') AC.resume();
-                const now = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+                const now = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
                 o.type = type; o.frequency.setValueAtTime(freq, now);
                 if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, now + dur);
                 g.gain.setValueAtTime(vol, now); g.gain.exponentialRampToValueAtTime(0.001, now + dur);
@@ -102,6 +138,25 @@
             } catch (e) { }
         }
         const popSound = (big) => { tone(big ? 500 : 700, big ? 0.18 : 0.1, 'sine', big ? 0.3 : 0.15, big ? 1400 : 1200); };
+        const fanfare = () => [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.25, 'triangle', 0.2, null, i * 0.12));
+
+        // ---------- What a bubble shows / what we say ----------
+        // Every bubble has a `value` (what counts) and a `label` (what's drawn).
+        function labelFor(v) {
+            if (mode === 'lower' || mode === 'match') return String(v).toLowerCase();
+            return String(v);
+        }
+        function goalText() {
+            if (mode === 'lower') return String(target).toLowerCase();
+            return String(target);   // upper, match (shows the BIG letter), numbers
+        }
+        function prompt() {
+            if (mode === 'upper') return `Pop the ${target}!`;
+            if (mode === 'lower') return `Pop the little ${target}!`;
+            if (mode === 'match') return `Big ${target}. Find little ${target}!`;
+            if (mode === 'numbers') return `Pop the ${target}!`;
+            if (mode === 'words') return `Find the word ${target}!`;
+        }
 
         // ---------- Setup ----------
         function resize() {
@@ -113,68 +168,152 @@
             bubbleR = Math.max(38, Math.min(W, H) * 0.085);
         }
 
-        function nextLetter() {
-            if (!letterQueue.length) letterQueue = LETTERS.split('').sort(() => Math.random() - 0.5);
-            target = letterQueue.pop();
-            got = 0;
-            document.getElementById('goal-letter').textContent = target;
+        function nextTarget() {
+            got = 0; sinceRight = 0; hinted = false;
+            if (mode === 'numbers') {
+                if (numIndex >= NUMBERS.length) numIndex = 0;
+                target = NUMBERS[numIndex];
+            } else {
+                if (!queue.length) queue = LETTERS.split('').sort(() => Math.random() - 0.5);
+                target = queue.pop();
+            }
+            document.getElementById('goal-letter').textContent = goalText();
             renderDots();
-            say('Pop the ' + target + '!');
+            say(prompt());
         }
 
         function renderDots() {
             const dots = document.getElementById('dots');
             dots.innerHTML = '';
-            for (let i = 0; i < POPS_PER_LETTER; i++) {
+            const n = mode === 'words' ? WORD_ROUNDS : MODES[mode].pops;
+            const on = mode === 'words' ? wordRound : got;
+            for (let i = 0; i < n; i++) {
                 const d = document.createElement('div');
-                d.className = 'dot' + (i < got ? ' on' : '');
+                d.className = 'dot' + (i < on ? ' on' : '');
                 dots.appendChild(d);
             }
         }
 
+        function randomOther() {
+            if (mode === 'numbers') {
+                // nearby numbers make it about reading the number, not just its length
+                const pool = NUMBERS.filter(n => n !== target && Math.abs(NUMBERS.indexOf(n) - numIndex) <= 6);
+                return pool[Math.floor(Math.random() * pool.length)];
+            }
+            let v; do { v = LETTERS[Math.floor(Math.random() * 26)]; } while (v === target);
+            return v;
+        }
         function spawnBubble(forceTarget) {
-            const onScreenTargets = bubbles.filter(b => b.letter === target).length;
+            const onScreenTargets = bubbles.filter(b => b.value === target).length;
             const isTarget = forceTarget || onScreenTargets === 0 || Math.random() < 0.4;
-            let letter = target;
-            if (!isTarget) { do { letter = LETTERS[Math.floor(Math.random() * 26)]; } while (letter === target); }
-            const r = bubbleR * (0.85 + Math.random() * 0.3);
+            const value = isTarget ? target : randomOther();
+            const r = bubbleR * (0.85 + Math.random() * 0.3) * (String(value).length > 2 ? 1.12 : 1);
             bubbles.push({
                 x: r + Math.random() * (W - 2 * r),
                 y: tubTop + r * 0.3,
-                r, letter,
-                vy: -(H * 0.06 + Math.random() * H * 0.04),   // px per second (slow & gentle)
+                r, value, label: labelFor(value),
+                vy: -(H * 0.06 + Math.random() * H * 0.04),
                 wob: Math.random() * Math.PI * 2,
                 hue: Math.floor(Math.random() * 360)
             });
         }
 
-        // ---------- Popping ----------
-        function pop(b) {
+        // ---------- Words mode ----------
+        function newWordSet() {
+            wordPending = false; sinceRight = 0; hinted = false;
+            const pick = WORDS[Math.floor(Math.random() * WORDS.length)];
+            const others = WORDS.filter(w => w !== pick).sort(() => Math.random() - .5).slice(0, 2);
+            const set = [pick, ...others].sort(() => Math.random() - .5);
+            target = pick[0];
+            wordSet = pick;
+            document.getElementById('goal-pic').textContent = pick[1];
+            renderDots();
+            const r = Math.max(bubbleR * 1.35, Math.min(W / 7.5, 110));
+            const gap = W / 3;
+            set.forEach((w, i) => bubbles.push({
+                x: gap * (i + .5), y: tubTop + r, r, value: w[0], label: w[0], pic: w[1],
+                vy: -H * 0.35, hover: H * (0.38 + (i % 2) * 0.08), wob: Math.random() * 6, hue: Math.floor(Math.random() * 360)
+            }));
+            say(`Find the word for ${pick[0]}! Which one says ${pick[0]}?`);
+        }
+        const cap = (w) => w[0].toUpperCase() + w.slice(1);
+        function popWord(b) {
+            const right = b.value === target;
             bubbles.splice(bubbles.indexOf(b), 1);
-            const right = b.letter === target;
+            burst(b, right);
+            // the picture jumps out of the bubble
+            floaters.push({ text: b.pic, x: b.x, y: b.y, vy: -120, life: 2.2, size: b.r * (right ? 2.2 : 1.4) });
+            wordPending = true;
+            wordRound++;
+            if (right) {
+                wordStars++;
+                fanfare();
+                floaters.push({ text: '⭐ ' + b.value + '! ⭐', x: W / 2, y: H * 0.25, vy: -30, life: 2.4, size: Math.min(W, H) * 0.1, word: true });
+                say(`${b.value.toUpperCase().split('').join(', ')}. ${b.value}! You read it!`);
+                rain(['⭐', b.pic, '🎉', '✨'], 18);
+            } else {
+                popSound(false);
+                hinted = true;   // the right one glows as it floats away
+                say(`That says ${b.value}! ${cap(target)} is ${target.toUpperCase().split('').join(', ')}. Let's try another!`);
+            }
+            renderDots();
+            // the others float away, then the next set comes up
+            bubbles.forEach(o => { o.hover = -400; o.vy = -H * 0.5; });
+            setTimeout(() => {
+                bubbles = [];
+                if (wordRound >= WORD_ROUNDS) wordsDone(); else newWordSet();
+            }, right ? 3600 : 3000);
+        }
+        function wordsDone() {
+            playing = false;
+            say(`You did ten words! You got ${wordStars} star${wordStars === 1 ? '' : 's'}!`);
+            fanfare();
+            rain(['⭐', '📖', '🎉', '🫧', '🦆'], 34);
+            setTimeout(() => { wordRound = 0; wordStars = 0; playing = true; newWordSet(); }, 4200);
+        }
+
+        // ---------- Popping ----------
+        function burst(b, right) {
             const n = right ? 22 : 10;
             for (let i = 0; i < n; i++) {
                 const a = Math.random() * Math.PI * 2, s = (right ? 260 : 160) * (0.4 + Math.random());
                 bits.push({ x: b.x, y: b.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, hue: right ? 45 + Math.random() * 30 : b.hue, size: right ? 8 : 5, star: right && i % 3 === 0 });
             }
+        }
+        function pop(b) {
+            if (mode === 'words') { if (!wordPending) popWord(b); return; }   // one answer per set
+            bubbles.splice(bubbles.indexOf(b), 1);
+            const right = b.value === target;
+            burst(b, right);
             popSound(right);
             if (right) {
-                got++;
+                got++; sinceRight = 0; hinted = false;
                 renderDots();
-                if (got >= POPS_PER_LETTER) {
-                    celebrate();
-                } else {
-                    say(b.letter);
-                }
+                if (got >= MODES[mode].pops) celebrate();
+                else say(mode === 'lower' || mode === 'match' ? `little ${target}` : String(target));
             }
         }
 
         function celebrate() {
             playing = false;
-            say('Hooray! You popped all the ' + target + "'s!");
-            [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.25, 'triangle', 0.2), i * 120));
-            const emojis = ['🫧', '🦆', '⭐', '🎉', '💦', '✨'];
-            for (let i = 0; i < 30; i++) {
+            if (mode === 'numbers') {
+                numIndex++;
+                try { localStorage.setItem('bubble-num-index', numIndex); } catch (e) { }
+                const next = NUMBERS[numIndex];
+                say(next ? `Hooray! ${target}! Next comes ${next}!` : `Hooray! You counted all the way to one hundred!`);
+                if (!next) numIndex = 0;
+            } else {
+                say(mode === 'upper' ? `Hooray! You popped all the ${target}'s!` : `Hooray! You popped all the little ${target}'s!`);
+            }
+            fanfare();
+            rain(['🫧', '🦆', '⭐', '🎉', '💦', '✨'], 30);
+            setTimeout(() => {
+                nextTarget();
+                playing = true;
+            }, 2600);
+        }
+        function rain(emojis, n) {
+            for (let i = 0; i < n; i++) {
                 setTimeout(() => {
                     const e = document.createElement('div');
                     e.className = 'rain';
@@ -185,10 +324,6 @@
                     setTimeout(() => e.remove(), 4200);
                 }, i * 60);
             }
-            setTimeout(() => {
-                nextLetter();
-                playing = true;
-            }, 2600);
         }
 
         function hitTest(x, y) {
@@ -211,11 +346,11 @@
         });
 
         document.addEventListener('keydown', (e) => {
-            if (!playing || e.key.length !== 1) return;
+            if (!playing || e.key.length !== 1 || mode === 'words' || mode === 'numbers') return;
             const k = e.key.toUpperCase();
             if (!LETTERS.includes(k)) return;
             // pop the highest bubble with that letter; if none, make one and pop it
-            const matches = bubbles.filter(b => b.letter === k).sort((a, b) => a.y - b.y);
+            const matches = bubbles.filter(b => b.value === k).sort((a, b) => a.y - b.y);
             if (matches.length) pop(matches[0]);
             else if (k === target) { spawnBubble(true); pop(bubbles[bubbles.length - 1]); }
             else tone(250, 0.1, 'sine', 0.08);
@@ -223,7 +358,6 @@
 
         // ---------- Drawing ----------
         function drawBackground() {
-            // tiles
             ctx.fillStyle = '#bfe9ff';
             ctx.fillRect(0, 0, W, H);
             const tile = Math.max(50, W / 12);
@@ -234,7 +368,6 @@
         }
 
         function drawTub() {
-            // water
             const wy = tubTop;
             ctx.fillStyle = '#5ec8ff';
             ctx.beginPath();
@@ -243,19 +376,16 @@
             for (let x = 0; x <= W; x += 20) ctx.lineTo(x, wy + Math.sin(x * 0.02 + t * 2) * 6);
             ctx.lineTo(W, H);
             ctx.fill();
-            // foam
             ctx.fillStyle = 'rgba(255,255,255,0.9)';
             for (let x = 0; x < W + 40; x += 38) {
                 ctx.beginPath();
                 ctx.arc(x, wy + Math.sin(x * 0.02 + t * 2) * 6, 18 + Math.sin(x + t) * 3, 0, Math.PI * 2);
                 ctx.fill();
             }
-            // tub rim
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, H - H * 0.07, W, H * 0.07);
             ctx.fillStyle = '#dfe8ef';
             ctx.fillRect(0, H - H * 0.07, W, 6);
-            // rubber duck
             const dx = W * 0.5 + Math.sin(t * 0.6) * W * 0.3;
             const dy = wy - 10 + Math.sin(t * 2.2) * 5;
             ctx.save();
@@ -271,6 +401,13 @@
         function drawBubble(b) {
             const x = b.x + Math.sin(b.wob) * b.r * 0.15;
             b.drawX = x;
+            const glow = hinted && b.value === target;
+            if (glow) {
+                // gentle golden glow on the right answer after a while
+                const pulse = 1 + Math.sin(t * 6) * 0.08;
+                ctx.fillStyle = 'rgba(255, 215, 64, 0.45)';
+                ctx.beginPath(); ctx.arc(x, b.y, b.r * 1.3 * pulse, 0, Math.PI * 2); ctx.fill();
+            }
             const g = ctx.createRadialGradient(x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.1, x, b.y, b.r);
             g.addColorStop(0, 'rgba(255,255,255,0.95)');
             g.addColorStop(0.35, `hsla(${b.hue},90%,85%,0.35)`);
@@ -278,21 +415,22 @@
             g.addColorStop(1, `hsla(${(b.hue + 120) % 360},90%,60%,0.75)`);
             ctx.fillStyle = g;
             ctx.beginPath(); ctx.arc(x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = glow ? '#ffb300' : 'rgba(255,255,255,0.9)';
+            ctx.lineWidth = glow ? 5 : 2;
             ctx.stroke();
-            // shine
             ctx.fillStyle = 'rgba(255,255,255,0.9)';
             ctx.beginPath(); ctx.ellipse(x - b.r * 0.4, b.y - b.r * 0.45, b.r * 0.18, b.r * 0.1, -0.6, 0, Math.PI * 2); ctx.fill();
-            // letter
-            ctx.font = `bold ${b.r * 1.05}px 'Arial Rounded MT Bold', Arial, sans-serif`;
+            // label sized to fit (1 letter, 2-3 digit numbers, words)
+            const len = b.label.length;
+            const size = len === 1 ? b.r * 1.05 : len === 2 ? b.r * 0.85 : b.r * 0.62;
+            ctx.font = `bold ${size}px 'Arial Rounded MT Bold', Arial, sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.lineWidth = Math.max(4, b.r * 0.12);
+            ctx.lineWidth = Math.max(4, size * 0.12);
             ctx.strokeStyle = '#1c5d99';
-            ctx.strokeText(b.letter, x, b.y + b.r * 0.06);
+            ctx.strokeText(b.label, x, b.y + b.r * 0.06);
             ctx.fillStyle = '#ffffff';
-            ctx.fillText(b.letter, x, b.y + b.r * 0.06);
+            ctx.fillText(b.label, x, b.y + b.r * 0.06);
         }
 
         function drawBits(dt) {
@@ -308,6 +446,15 @@
                     ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
                 }
             });
+            floaters = floaters.filter(f => f.life > 0);
+            floaters.forEach(f => {
+                f.y += f.vy * dt; f.vy *= 0.97; f.life -= dt;
+                ctx.globalAlpha = Math.min(1, f.life);
+                ctx.font = f.word ? `bold ${f.size}px 'Arial Rounded MT Bold', Arial, sans-serif` : `${f.size}px sans-serif`;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                if (f.word) { ctx.lineWidth = 8; ctx.strokeStyle = '#1c5d99'; ctx.strokeText(f.text, f.x, f.y); ctx.fillStyle = '#ffd23f'; }
+                ctx.fillText(f.text, f.x, f.y);
+            });
             ctx.globalAlpha = 1;
         }
 
@@ -317,13 +464,27 @@
             drawBackground();
 
             if (playing) {
-                spawnTimer -= dt;
-                const maxBubbles = Math.max(6, Math.floor((W * H) / (bubbleR * bubbleR * 14)));
-                if (spawnTimer <= 0 && bubbles.length < maxBubbles) { spawnBubble(); spawnTimer = 0.9; }
+                sinceRight += dt;
+                if (!hinted && sinceRight > (mode === 'words' ? 7 : 8)) {
+                    hinted = true;
+                    say(mode === 'words' ? `${target}! Look for the glowing bubble!` : `${prompt()} Look for the glowing ones!`);
+                }
+                if (mode !== 'words') {
+                    spawnTimer -= dt;
+                    const maxBubbles = Math.max(6, Math.floor((W * H) / (bubbleR * bubbleR * 14)));
+                    if (spawnTimer <= 0 && bubbles.length < maxBubbles) { spawnBubble(); spawnTimer = 0.9; }
+                }
             }
-            bubbles.forEach(b => { b.y += b.vy * dt; b.wob += dt * 1.5; });
-            // bubbles that float off the top gently disappear
-            bubbles = bubbles.filter(b => b.y > -b.r);
+            bubbles.forEach(b => {
+                if (b.hover !== undefined) {
+                    // word bubbles rise up and bob in place
+                    if (b.y > b.hover) b.y = Math.max(b.hover, b.y + b.vy * dt);
+                    else b.y = b.hover + Math.sin(t * 1.5 + b.wob) * 8;
+                    if (b.hover < 0) b.y += b.vy * dt;
+                } else b.y += b.vy * dt;
+                b.wob += dt * 1.5;
+            });
+            bubbles = bubbles.filter(b => b.y > -b.r * 2);
             bubbles.forEach(drawBubble);
             drawTub();
             drawBits(dt);
@@ -331,13 +492,37 @@
         }
 
         // ---------- Start ----------
-        document.getElementById('start-btn').addEventListener('click', () => {
+        function startMode(m) {
+            mode = m;
+            try { localStorage.setItem('bubble-mode', m); } catch (e) { }
             document.getElementById('start').classList.add('hidden');
+            document.getElementById('modes-btn').style.display = 'block';
             tone(600, 0.1); // unlock audio on iOS
-            nextLetter();
-            for (let i = 0; i < 4; i++) { spawnBubble(i === 0); bubbles[i].y = tubTop - (i + 1) * H * 0.15; }
+            bubbles = []; floaters = [];
+            const isWords = m === 'words';
+            document.getElementById('goal-letter').style.display = isWords ? 'none' : '';
+            document.getElementById('goal-pic').style.display = isWords ? 'inline' : 'none';
+            document.getElementById('goal-text').textContent = isWords ? 'Find the word' : m === 'match' ? 'Find little' : 'Pop the';
+            if (isWords) {
+                wordRound = 0; wordStars = 0;
+                newWordSet();
+            } else {
+                nextTarget();
+                for (let i = 0; i < 4; i++) { spawnBubble(i === 0); bubbles[i].y = tubTop - (i + 1) * H * 0.15; }
+            }
             playing = true;
+        }
+        document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => startMode(b.dataset.mode)));
+        document.getElementById('modes-btn').addEventListener('click', () => {
+            playing = false; bubbles = []; speechSynthesis && speechSynthesis.cancel();
+            document.getElementById('modes-btn').style.display = 'none';
+            document.getElementById('start').classList.remove('hidden');
         });
+        // remember where numbers left off on the button
+        (() => {
+            const btn = document.querySelector('[data-mode="numbers"] small');
+            if (numIndex > 0 && numIndex < NUMBERS.length) btn.textContent = `keep going from ${NUMBERS[numIndex]}`;
+        })();
 
         // Menu
         document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
