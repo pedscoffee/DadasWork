@@ -1,0 +1,1437 @@
+{
+ "bubbleWords": [
+  [
+   "cat",
+   "🐱"
+  ],
+  [
+   "dog",
+   "🐶"
+  ],
+  [
+   "pig",
+   "🐷"
+  ],
+  [
+   "hen",
+   "🐔"
+  ],
+  [
+   "fox",
+   "🦊"
+  ],
+  [
+   "bat",
+   "🦇"
+  ],
+  [
+   "bug",
+   "🐛"
+  ],
+  [
+   "rat",
+   "🐀"
+  ],
+  [
+   "cow",
+   "🐮"
+  ],
+  [
+   "bee",
+   "🐝"
+  ],
+  [
+   "owl",
+   "🦉"
+  ],
+  [
+   "ant",
+   "🐜"
+  ],
+  [
+   "ram",
+   "🐏"
+  ],
+  [
+   "sun",
+   "☀️"
+  ],
+  [
+   "hat",
+   "🎩"
+  ],
+  [
+   "bus",
+   "🚌"
+  ],
+  [
+   "bed",
+   "🛏️"
+  ],
+  [
+   "box",
+   "📦"
+  ],
+  [
+   "map",
+   "🗺️"
+  ],
+  [
+   "pen",
+   "🖊️"
+  ],
+  [
+   "web",
+   "🕸️"
+  ],
+  [
+   "van",
+   "🚐"
+  ],
+  [
+   "jet",
+   "✈️"
+  ],
+  [
+   "egg",
+   "🥚"
+  ],
+  [
+   "pie",
+   "🥧"
+  ],
+  [
+   "key",
+   "🔑"
+  ],
+  [
+   "cup",
+   "☕"
+  ],
+  [
+   "car",
+   "🚗"
+  ]
+ ],
+ "carWords": [
+  [
+   "cat",
+   "🐱"
+  ],
+  [
+   "dog",
+   "🐶"
+  ],
+  [
+   "pig",
+   "🐷"
+  ],
+  [
+   "hen",
+   "🐔"
+  ],
+  [
+   "fox",
+   "🦊"
+  ],
+  [
+   "bat",
+   "🦇"
+  ],
+  [
+   "bug",
+   "🐛"
+  ],
+  [
+   "rat",
+   "🐀"
+  ],
+  [
+   "sun",
+   "☀️"
+  ],
+  [
+   "hat",
+   "🎩"
+  ],
+  [
+   "bus",
+   "🚌"
+  ],
+  [
+   "bed",
+   "🛏️"
+  ],
+  [
+   "box",
+   "📦"
+  ],
+  [
+   "map",
+   "🗺️"
+  ],
+  [
+   "pen",
+   "🖊️"
+  ],
+  [
+   "web",
+   "🕸️"
+  ],
+  [
+   "van",
+   "🚐"
+  ],
+  [
+   "jet",
+   "✈️"
+  ],
+  [
+   "cup",
+   "☕"
+  ],
+  [
+   "bag",
+   "👜"
+  ],
+  [
+   "fan",
+   "🪭"
+  ],
+  [
+   "pot",
+   "🍲"
+  ],
+  [
+   "ant",
+   "🐜"
+  ]
+ ],
+ "sounds": {
+  "a": "aah",
+  "b": "buh",
+  "c": "kuh",
+  "d": "duh",
+  "e": "eh",
+  "f": "fff",
+  "g": "guh",
+  "h": "huh",
+  "i": "ih",
+  "j": "juh",
+  "k": "kuh",
+  "l": "lll",
+  "m": "mmm",
+  "n": "nnn",
+  "o": "aw",
+  "p": "puh",
+  "r": "rrr",
+  "s": "sss",
+  "t": "tuh",
+  "u": "uh",
+  "v": "vvv",
+  "w": "wuh",
+  "x": "ks",
+  "y": "yuh",
+  "z": "zzz"
+ },
+ "syllables": [
+  [
+   "dog",
+   "🐶",
+   [
+    "dog"
+   ],
+   [
+    "dog"
+   ]
+  ],
+  [
+   "cat",
+   "🐱",
+   [
+    "cat"
+   ],
+   [
+    "cat"
+   ]
+  ],
+  [
+   "sun",
+   "☀️",
+   [
+    "sun"
+   ],
+   [
+    "sun"
+   ]
+  ],
+  [
+   "truck",
+   "🚚",
+   [
+    "truck"
+   ],
+   [
+    "truck"
+   ]
+  ],
+  [
+   "fish",
+   "🐟",
+   [
+    "fish"
+   ],
+   [
+    "fish"
+   ]
+  ],
+  [
+   "frog",
+   "🐸",
+   [
+    "frog"
+   ],
+   [
+    "frog"
+   ]
+  ],
+  [
+   "rabbit",
+   "🐇",
+   [
+    "rab",
+    "bit"
+   ],
+   [
+    "rab",
+    "bit"
+   ]
+  ],
+  [
+   "pizza",
+   "🍕",
+   [
+    "piz",
+    "za"
+   ],
+   [
+    "peet",
+    "suh"
+   ]
+  ],
+  [
+   "rocket",
+   "🚀",
+   [
+    "rock",
+    "et"
+   ],
+   [
+    "rock",
+    "it"
+   ]
+  ],
+  [
+   "monkey",
+   "🐒",
+   [
+    "mon",
+    "key"
+   ],
+   [
+    "monk",
+    "ee"
+   ]
+  ],
+  [
+   "tiger",
+   "🐯",
+   [
+    "ti",
+    "ger"
+   ],
+   [
+    "tie",
+    "ger"
+   ]
+  ],
+  [
+   "apple",
+   "🍎",
+   [
+    "ap",
+    "ple"
+   ],
+   [
+    "ap",
+    "pull"
+   ]
+  ],
+  [
+   "turtle",
+   "🐢",
+   [
+    "tur",
+    "tle"
+   ],
+   [
+    "tur",
+    "tull"
+   ]
+  ],
+  [
+   "pumpkin",
+   "🎃",
+   [
+    "pump",
+    "kin"
+   ],
+   [
+    "pump",
+    "kin"
+   ]
+  ],
+  [
+   "robot",
+   "🤖",
+   [
+    "ro",
+    "bot"
+   ],
+   [
+    "row",
+    "bot"
+   ]
+  ],
+  [
+   "cupcake",
+   "🧁",
+   [
+    "cup",
+    "cake"
+   ],
+   [
+    "cup",
+    "cake"
+   ]
+  ],
+  [
+   "zebra",
+   "🦓",
+   [
+    "ze",
+    "bra"
+   ],
+   [
+    "zee",
+    "bruh"
+   ]
+  ],
+  [
+   "penguin",
+   "🐧",
+   [
+    "pen",
+    "guin"
+   ],
+   [
+    "pen",
+    "gwin"
+   ]
+  ],
+  [
+   "dinosaur",
+   "🦖",
+   [
+    "di",
+    "no",
+    "saur"
+   ],
+   [
+    "dye",
+    "no",
+    "sore"
+   ]
+  ],
+  [
+   "banana",
+   "🍌",
+   [
+    "ba",
+    "na",
+    "na"
+   ],
+   [
+    "buh",
+    "nan",
+    "uh"
+   ]
+  ],
+  [
+   "elephant",
+   "🐘",
+   [
+    "el",
+    "e",
+    "phant"
+   ],
+   [
+    "el",
+    "uh",
+    "fant"
+   ]
+  ],
+  [
+   "butterfly",
+   "🦋",
+   [
+    "but",
+    "ter",
+    "fly"
+   ],
+   [
+    "butt",
+    "er",
+    "fly"
+   ]
+  ],
+  [
+   "octopus",
+   "🐙",
+   [
+    "oc",
+    "to",
+    "pus"
+   ],
+   [
+    "ock",
+    "toe",
+    "pus"
+   ]
+  ],
+  [
+   "kangaroo",
+   "🦘",
+   [
+    "kan",
+    "ga",
+    "roo"
+   ],
+   [
+    "kang",
+    "guh",
+    "roo"
+   ]
+  ],
+  [
+   "tomato",
+   "🍅",
+   [
+    "to",
+    "ma",
+    "to"
+   ],
+   [
+    "tuh",
+    "may",
+    "toe"
+   ]
+  ],
+  [
+   "hamburger",
+   "🍔",
+   [
+    "ham",
+    "bur",
+    "ger"
+   ],
+   [
+    "ham",
+    "bur",
+    "grr"
+   ]
+  ],
+  [
+   "helicopter",
+   "🚁",
+   [
+    "he",
+    "li",
+    "cop",
+    "ter"
+   ],
+   [
+    "hell",
+    "ee",
+    "cop",
+    "ter"
+   ]
+  ],
+  [
+   "watermelon",
+   "🍉",
+   [
+    "wa",
+    "ter",
+    "mel",
+    "on"
+   ],
+   [
+    "wah",
+    "ter",
+    "mel",
+    "un"
+   ]
+  ],
+  [
+   "caterpillar",
+   "🐛",
+   [
+    "cat",
+    "er",
+    "pil",
+    "lar"
+   ],
+   [
+    "cat",
+    "er",
+    "pill",
+    "er"
+   ]
+  ],
+  [
+   "alligator",
+   "🐊",
+   [
+    "al",
+    "li",
+    "ga",
+    "tor"
+   ],
+   [
+    "al",
+    "ih",
+    "gay",
+    "ter"
+   ]
+  ]
+ ],
+ "rhymes": [
+  {
+   "head": [
+    "cat",
+    "🐱"
+   ],
+   "rhymes": [
+    [
+     "hat",
+     "🎩"
+    ],
+    [
+     "bat",
+     "🦇"
+    ],
+    [
+     "rat",
+     "🐀"
+    ]
+   ]
+  },
+  {
+   "head": [
+    "dog",
+    "🐶"
+   ],
+   "rhymes": [
+    [
+     "frog",
+     "🐸"
+    ],
+    [
+     "hog",
+     "🐗"
+    ],
+    [
+     "fog",
+     "🌫️"
+    ]
+   ]
+  },
+  {
+   "head": [
+    "bee",
+    "🐝"
+   ],
+   "rhymes": [
+    [
+     "tree",
+     "🌳"
+    ],
+    [
+     "key",
+     "🔑"
+    ],
+    [
+     "knee",
+     "🦵"
+    ]
+   ]
+  },
+  {
+   "head": [
+    "moon",
+    "🌙"
+   ],
+   "rhymes": [
+    [
+     "spoon",
+     "🥄"
+    ],
+    [
+     "balloon",
+     "🎈"
+    ],
+    [
+     "raccoon",
+     "🦝"
+    ]
+   ]
+  },
+  {
+   "head": [
+    "sock",
+    "🧦"
+   ],
+   "rhymes": [
+    [
+     "clock",
+     "🕰️"
+    ],
+    [
+     "rock",
+     "🪨"
+    ],
+    [
+     "lock",
+     "🔒"
+    ]
+   ]
+  },
+  {
+   "head": [
+    "goat",
+    "🐐"
+   ],
+   "rhymes": [
+    [
+     "boat",
+     "⛵"
+    ],
+    [
+     "coat",
+     "🧥"
+    ]
+   ]
+  },
+  {
+   "head": [
+    "star",
+    "⭐"
+   ],
+   "rhymes": [
+    [
+     "car",
+     "🚗"
+    ],
+    [
+     "jar",
+     "🫙"
+    ]
+   ]
+  },
+  {
+   "head": [
+    "bear",
+    "🐻"
+   ],
+   "rhymes": [
+    [
+     "pear",
+     "🍐"
+    ],
+    [
+     "chair",
+     "🪑"
+    ]
+   ]
+  },
+  {
+   "head": [
+    "cake",
+    "🍰"
+   ],
+   "rhymes": [
+    [
+     "snake",
+     "🐍"
+    ],
+    [
+     "lake",
+     "🏞️"
+    ]
+   ]
+  },
+  {
+   "head": [
+    "king",
+    "🤴"
+   ],
+   "rhymes": [
+    [
+     "ring",
+     "💍"
+    ],
+    [
+     "wing",
+     "🪽"
+    ]
+   ]
+  },
+  {
+   "head": [
+    "fish",
+    "🐟"
+   ],
+   "rhymes": [
+    [
+     "dish",
+     "🍽️"
+    ],
+    [
+     "wish",
+     "🌠"
+    ]
+   ]
+  },
+  {
+   "head": [
+    "bed",
+    "🛏️"
+   ],
+   "rhymes": [
+    [
+     "sled",
+     "🛷"
+    ],
+    [
+     "bread",
+     "🍞"
+    ]
+   ]
+  }
+ ],
+ "sight": [
+  "the",
+  "a",
+  "I",
+  "and",
+  "see",
+  "go",
+  "my",
+  "is",
+  "can",
+  "to",
+  "we",
+  "me",
+  "up",
+  "like",
+  "you",
+  "it",
+  "in",
+  "look",
+  "at",
+  "he",
+  "no",
+  "yes",
+  "big",
+  "red",
+  "run",
+  "said",
+  "play",
+  "here",
+  "one",
+  "two",
+  "not",
+  "she",
+  "on",
+  "come"
+ ],
+ "fetchLetters": [
+  {
+   "L": "B",
+   "like": "bark",
+   "items": [
+    [
+     "🐻",
+     "bear"
+    ],
+    [
+     "🍌",
+     "banana"
+    ],
+    [
+     "🚌",
+     "bus"
+    ]
+   ]
+  },
+  {
+   "L": "S",
+   "like": "Sully",
+   "items": [
+    [
+     "☀️",
+     "sun"
+    ],
+    [
+     "🧦",
+     "sock"
+    ],
+    [
+     "🐍",
+     "snake"
+    ]
+   ]
+  },
+  {
+   "L": "D",
+   "like": "dog",
+   "items": [
+    [
+     "🦆",
+     "duck"
+    ],
+    [
+     "🍩",
+     "donut"
+    ],
+    [
+     "🥁",
+     "drum"
+    ]
+   ]
+  },
+  {
+   "L": "T",
+   "like": "tail",
+   "items": [
+    [
+     "🐢",
+     "turtle"
+    ],
+    [
+     "🚂",
+     "train"
+    ],
+    [
+     "🐯",
+     "tiger"
+    ]
+   ]
+  },
+  {
+   "L": "P",
+   "like": "puppy",
+   "items": [
+    [
+     "🐷",
+     "pig"
+    ],
+    [
+     "🍕",
+     "pizza"
+    ],
+    [
+     "🐧",
+     "penguin"
+    ]
+   ]
+  },
+  {
+   "L": "F",
+   "like": "fetch",
+   "items": [
+    [
+     "🐟",
+     "fish"
+    ],
+    [
+     "🐸",
+     "frog"
+    ],
+    [
+     "🦊",
+     "fox"
+    ]
+   ]
+  },
+  {
+   "L": "W",
+   "like": "woof",
+   "items": [
+    [
+     "🍉",
+     "watermelon"
+    ],
+    [
+     "🐋",
+     "whale"
+    ],
+    [
+     "🪱",
+     "worm"
+    ]
+   ]
+  },
+  {
+   "L": "M",
+   "like": "muddy",
+   "items": [
+    [
+     "🌙",
+     "moon"
+    ],
+    [
+     "🐒",
+     "monkey"
+    ],
+    [
+     "🍄",
+     "mushroom"
+    ]
+   ]
+  },
+  {
+   "L": "C",
+   "like": "cuddle",
+   "items": [
+    [
+     "🐱",
+     "cat"
+    ],
+    [
+     "🥕",
+     "carrot"
+    ],
+    [
+     "🚗",
+     "car"
+    ]
+   ]
+  },
+  {
+   "L": "L",
+   "like": "lick",
+   "items": [
+    [
+     "🦁",
+     "lion"
+    ],
+    [
+     "🍋",
+     "lemon"
+    ],
+    [
+     "🪜",
+     "ladder"
+    ]
+   ]
+  },
+  {
+   "L": "R",
+   "like": "run",
+   "items": [
+    [
+     "🌈",
+     "rainbow"
+    ],
+    [
+     "🚀",
+     "rocket"
+    ],
+    [
+     "🤖",
+     "robot"
+    ]
+   ]
+  },
+  {
+   "L": "H",
+   "like": "happy",
+   "items": [
+    [
+     "🎩",
+     "hat"
+    ],
+    [
+     "🐴",
+     "horse"
+    ],
+    [
+     "🍯",
+     "honey"
+    ]
+   ]
+  }
+ ],
+ "sort": [
+  {
+   "name": "material",
+   "ask": "Where does it go? Trash, recycling, or compost?",
+   "bins": [
+    {
+     "id": "trash",
+     "label": "Trash",
+     "icon": "🗑️",
+     "color": "#607d8b"
+    },
+    {
+     "id": "recycle",
+     "label": "Recycle",
+     "icon": "♻️",
+     "color": "#1e88e5"
+    },
+    {
+     "id": "compost",
+     "label": "Compost",
+     "icon": "🌱",
+     "color": "#43a047"
+    }
+   ],
+   "items": [
+    [
+     "🥫",
+     "recycle",
+     "a can",
+     "Cans get made into new cans!"
+    ],
+    [
+     "📰",
+     "recycle",
+     "newspaper",
+     "Paper can be made into new paper!"
+    ],
+    [
+     "📦",
+     "recycle",
+     "a box",
+     "Cardboard gets recycled!"
+    ],
+    [
+     "🍾",
+     "recycle",
+     "a glass bottle",
+     "Glass can be melted and used again!"
+    ],
+    [
+     "🧴",
+     "recycle",
+     "a plastic bottle",
+     "Plastic bottles get recycled!"
+    ],
+    [
+     "🍌",
+     "compost",
+     "a banana peel",
+     "It's food, so it goes in compost!"
+    ],
+    [
+     "🍎",
+     "compost",
+     "an apple core",
+     "Food scraps turn into dirt for plants!"
+    ],
+    [
+     "🥕",
+     "compost",
+     "a carrot top",
+     "Veggies go in compost!"
+    ],
+    [
+     "🍂",
+     "compost",
+     "leaves",
+     "Leaves turn back into soil!"
+    ],
+    [
+     "🥚",
+     "compost",
+     "egg shells",
+     "Egg shells go in compost!"
+    ],
+    [
+     "🩹",
+     "trash",
+     "a used bandage",
+     "Bandages go in the trash."
+    ],
+    [
+     "🍬",
+     "trash",
+     "a candy wrapper",
+     "Wrappers go in the trash."
+    ],
+    [
+     "🧽",
+     "trash",
+     "an old sponge",
+     "Old sponges go in the trash."
+    ],
+    [
+     "🎈",
+     "trash",
+     "a popped balloon",
+     "Popped balloons go in the trash."
+    ]
+   ]
+  },
+  {
+   "name": "color",
+   "ask": "What color is it?",
+   "bins": [
+    {
+     "id": "red",
+     "label": "Red",
+     "icon": "🔴",
+     "color": "#e53935"
+    },
+    {
+     "id": "blue",
+     "label": "Blue",
+     "icon": "🔵",
+     "color": "#1e88e5"
+    },
+    {
+     "id": "yellow",
+     "label": "Yellow",
+     "icon": "🟡",
+     "color": "#fbc02d"
+    }
+   ],
+   "items": [
+    [
+     "🍎",
+     "red",
+     "an apple",
+     "Apples are red!"
+    ],
+    [
+     "🍓",
+     "red",
+     "a strawberry",
+     "Strawberries are red!"
+    ],
+    [
+     "🚒",
+     "red",
+     "a fire truck",
+     "Fire trucks are red!"
+    ],
+    [
+     "❤️",
+     "red",
+     "a heart",
+     "This heart is red!"
+    ],
+    [
+     "🌹",
+     "red",
+     "a rose",
+     "This rose is red!"
+    ],
+    [
+     "🫐",
+     "blue",
+     "blueberries",
+     "Blueberries are blue!"
+    ],
+    [
+     "🐳",
+     "blue",
+     "a whale",
+     "This whale is blue!"
+    ],
+    [
+     "💙",
+     "blue",
+     "a blue heart",
+     "This heart is blue!"
+    ],
+    [
+     "🧢",
+     "blue",
+     "a hat",
+     "This hat is blue!"
+    ],
+    [
+     "🦋",
+     "blue",
+     "a butterfly",
+     "This butterfly is blue!"
+    ],
+    [
+     "🍌",
+     "yellow",
+     "a banana",
+     "Bananas are yellow!"
+    ],
+    [
+     "🌻",
+     "yellow",
+     "a sunflower",
+     "Sunflowers are yellow!"
+    ],
+    [
+     "🐥",
+     "yellow",
+     "a chick",
+     "Chicks are yellow!"
+    ],
+    [
+     "⭐",
+     "yellow",
+     "a star",
+     "This star is yellow!"
+    ],
+    [
+     "🧀",
+     "yellow",
+     "cheese",
+     "Cheese is yellow!"
+    ]
+   ]
+  },
+  {
+   "name": "shape",
+   "ask": "What shape is it?",
+   "bins": [
+    {
+     "id": "circle",
+     "label": "Circle",
+     "icon": "⚪",
+     "color": "#8e24aa"
+    },
+    {
+     "id": "square",
+     "label": "Square",
+     "icon": "🟦",
+     "color": "#f4511e"
+    },
+    {
+     "id": "triangle",
+     "label": "Triangle",
+     "icon": "🔺",
+     "color": "#00897b"
+    }
+   ],
+   "items": [
+    [
+     "⚽",
+     "circle",
+     "a ball",
+     "A ball is round, like a circle!"
+    ],
+    [
+     "🍊",
+     "circle",
+     "an orange",
+     "An orange is round!"
+    ],
+    [
+     "🍩",
+     "circle",
+     "a donut",
+     "A donut is a circle!"
+    ],
+    [
+     "🪙",
+     "circle",
+     "a coin",
+     "A coin is a circle!"
+    ],
+    [
+     "🌕",
+     "circle",
+     "the moon",
+     "A full moon is a circle!"
+    ],
+    [
+     "🍪",
+     "circle",
+     "a cookie",
+     "A cookie is a circle!"
+    ],
+    [
+     "📦",
+     "square",
+     "a box",
+     "This box has square sides!"
+    ],
+    [
+     "🎁",
+     "square",
+     "a present",
+     "This present is a square!"
+    ],
+    [
+     "🧇",
+     "square",
+     "a waffle",
+     "This waffle is a square!"
+    ],
+    [
+     "🖼️",
+     "square",
+     "a picture frame",
+     "This frame is a square!"
+    ],
+    [
+     "🔲",
+     "square",
+     "a square",
+     "Four sides, all the same!"
+    ],
+    [
+     "🍕",
+     "triangle",
+     "pizza",
+     "A slice of pizza is a triangle!"
+    ],
+    [
+     "⛺",
+     "triangle",
+     "a tent",
+     "A tent is a triangle!"
+    ],
+    [
+     "🔺",
+     "triangle",
+     "a triangle",
+     "Three sides and three corners!"
+    ],
+    [
+     "🍙",
+     "triangle",
+     "a rice ball",
+     "This rice ball is a triangle!"
+    ],
+    [
+     "🎄",
+     "triangle",
+     "a tree",
+     "This tree is a triangle!"
+    ]
+   ]
+  }
+ ]
+}

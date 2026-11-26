@@ -64,3 +64,14 @@ MIT. Feel free to use, modify, and share!
 
 ---
 Built with love for curious kids who want to help with "Dada's Work" 💖
+
+
+## 🎙️ Dad's voice
+
+The games talk with the best voice on the device (pick one on **Game Voice** in the menu). They can also play **recorded clips** instead:
+
+1. Read the script in `voice/SCRIPT.md` into Voice Memos (clap + "Page N" before each page, ~1 second pause between lines).
+2. `python3 tools/split-recording.py recording.m4a` cuts it into `voice/clips/<id>.mp3`, updates `voice/clips.js`, and writes `voice/review.html` to listen through.
+3. The games glue clips together ("Find the word" + "cat"). If any piece of a sentence isn't recorded, that sentence uses the device voice.
+
+When games or word lists change: `node tools/extract-vocab.js && node tools/build-voice-script.js && node tools/script-to-markdown.js`, then `node tools/voice-coverage.js` to check every sentence can be built from the script.
