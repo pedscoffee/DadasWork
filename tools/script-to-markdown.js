@@ -7,9 +7,8 @@ let md = INTRO;
 pages.forEach((p, pi) => {
     md += `\n## Page ${pi + 1}\n\n👏 **Clap once, then say "Page ${words[pi + 1]}."**\n\n`;
     p.lines.forEach((l, li) => {
-        if (l.first || li === 0) md += `**${l.section}${l.first ? '' : ' (continued)'}**${l.first && l.note ? ' · _' + l.note + '_' : ''}\n\n`;
+        if (li === 0) md += `**${l.section}**${l.note ? ' · _' + l.note + '_' : ''}\n\n`;
         md += `${li + 1}. ${l.text}${l.hint ? ` · _${l.hint}_` : ''}\n`;
-        if (li < p.lines.length - 1 && p.lines[li + 1].first) md += '\n';
     });
 });
 fs.writeFileSync(path.join(__dirname, '..', 'voice', 'SCRIPT.md'), md);

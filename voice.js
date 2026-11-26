@@ -70,7 +70,7 @@ const VoiceText = (() => {
                 if (dict[k]) { found = { id: dict[k], n }; break; }
             }
             if (found) { out.push({ id: found.id }); i += found.n; continue; }
-            if (t === ',' || t === '.') { out.push({ pause: t === '.' ? 260 : 130 }); i++; continue; }
+            if (t === ',' || t === '.') { out.push({ pause: t === '.' ? 450 : 180 }); i++; continue; }
             return null;
         }
         return out;
@@ -135,6 +135,7 @@ const Voice = (() => {
     }
     const KEY = 'dadas-voice';
     let current = 0, busyUntil = 0, pending = null, timer = null, chosen = null;
+    const BREATH = 800;   // ms of quiet before a waiting line starts (keeps it calm, not rapid-fire)
 
     // Novelty / joke voices on Apple devices we never want
     const SILLY = /albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|ralph|fred|junior|kathy|grandma|grandpa|eddy|flo|reed|rocko|sandy|shelley/i;
@@ -183,8 +184,13 @@ const Voice = (() => {
         stopClips();
         const done = () => {
             if (id !== current) return;
-            busyUntil = 0;
-            if (pending) { const p = pending; pending = null; speak(p.text, p.rate); }
+            if (pending) {
+                // take a breath, then say the next line
+                busyUntil = Date.now() + BREATH + 100;
+                const p = pending; pending = null;
+                clearTimeout(timer);
+                timer = setTimeout(() => { if (id === current) speak(p.text, p.rate); }, BREATH);
+            } else busyUntil = 0;
         };
         busyUntil = Date.now() + 900 + text.length * 75 / rate;   // until we know better
         if (playClips(text, id, done)) return;
@@ -196,7 +202,7 @@ const Voice = (() => {
         u.__voice = true;
         const v = chosen || pick();
         if (v) { u.voice = v; u.lang = v.lang; }
-        u.rate = natural() ? Math.min(1, rate + .05) : rate;
+        u.rate = rate;
         u.pitch = natural() ? 1.02 : 1.12;
         // Some iPads never fire onend, so also guess how long it takes
         busyUntil = Date.now() + 900 + text.length * 75 / u.rate;

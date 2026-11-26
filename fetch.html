@@ -345,9 +345,10 @@ function dropBall() {
         targets = [];
         return;
     }
-    const brag = brought && brought !== 'ball' ? `Sully brought back the ball, not the ${landedOn.id}! ` : '';
-    const nextC = () => { newChallenge(); return challenge.say; };
-    say(`${count} ${fb.text} ${fb.text ? '' : brag}${nextC()}`);
+    // say the count and how it went now; the next challenge after Sully settles down
+    say(`${count} ${fb.text}`.trim());
+    newChallenge();
+    if (challenge.kind !== 'free') setTimeout(() => { if (ball.state === 'hand' && sully.state === 'sit') say(challenge.say); }, 1500);
     if (fb.text) msgAt(fb.good ? '⭐ ' + fb.text : fb.text, W / 2, H * .3, fb.good ? '#FFD93D' : '#fff');
 }
 function burst(x, y) { for (let i = 0; i < 18; i++) particles.push({ x, y, vx: (Math.random() - .5) * 320, vy: -Math.random() * 320, life: 1, c: '#FFD93D' }); }

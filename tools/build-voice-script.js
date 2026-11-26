@@ -15,18 +15,6 @@ const S = (title, note, lines) => sections.push({ title, note, lines: lines.map(
 const uniq = (a) => [...new Set(a)];
 const words = (list) => list.map(w => ({ text: w }));
 
-// ---------------- 1. Warm-up ----------------
-S('Warm-up: cheers', 'Big and happy. These get heard a LOT.', [
-    'Yes!', 'Hooray!', 'Great job!', 'Perfect!', 'Beautiful!', 'Wheee!', 'Boing!', 'Silly!', 'Yum!',
-    'You read it!', 'You found it!', 'You guessed it!', "Let's try another!", "Let's find out!",
-    'Keep going!', 'Keep jumping!', 'Keep spinning!', 'Choo choo!', 'All aboard!', 'Treasure!', 'Blast off!',
-    'Gobble gobble!', 'Good boy, Sully!', 'Great pattern!', 'A new pattern!', "That's"
-]);
-S('Hints', 'Gentle, helpful voice.', [
-    'Look for the glowing ones!', 'Look for the glowing bubble!', 'Look for the glowing can!', 'Tap the glowing bin!',
-    "It's the glowing one!", 'Tap any fish.', 'Tap a number!', 'Tap a car!', 'Tap the picture!', 'Tap to jump!'
-]);
-
 // ---------------- 2. Letters, sounds, numbers ----------------
 const AZ = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 S('Letter names', 'Just the name of each letter: "A" (ay), "B" (bee)…', AZ.map(L => ({ text: L, hint: 'letter name' })));
@@ -38,6 +26,18 @@ S('Letter sounds', 'The SOUND each letter makes, short and clipped. Try not to a
         .map(l => ({ text: SOUNDS[l], hint: `the sound ${l.toUpperCase()} makes` + (soundHint[l] ? ` (${soundHint[l]})` : '') })));
 const nums = [...Array(21).keys()].map(n => VoiceText.numberWords(n).join(' ')).concat(['thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety', 'one hundred']);
 S('Numbers', 'Counting voice, like "one, two, three".', nums);
+
+// ---------------- 1. Warm-up ----------------
+S('Warm-up: cheers', 'Big and happy. These get heard a LOT.', [
+    'Yes!', 'Hooray!', 'Great job!', 'Perfect!', 'Beautiful!', 'Wheee!', 'Boing!', 'Silly!', 'Yum!',
+    'You read it!', 'You found it!', 'You guessed it!', "Let's try another!", "Let's find out!",
+    'Keep going!', 'Keep jumping!', 'Keep spinning!', 'Choo choo!', 'All aboard!', 'Treasure!', 'Blast off!',
+    'Gobble gobble!', 'Good boy, Sully!', 'Great pattern!', 'A new pattern!', "That's"
+]);
+S('Hints', 'Gentle, helpful voice.', [
+    'Look for the glowing ones!', 'Look for the glowing bubble!', 'Look for the glowing can!', 'Tap the glowing bin!',
+    "It's the glowing one!", 'Tap any fish.', 'Tap a number!', 'Tap a car!', 'Tap the picture!', 'Tap to jump!'
+]);
 
 // ---------------- 3. Word lists ----------------
 const cvc = uniq([...V.bubbleWords.map(w => w[0]), ...V.carWords.map(w => w[0])]);
@@ -132,16 +132,15 @@ const LEADS = new Set(['Pop the', 'Pop the little', 'little', 'Big', 'Find littl
 sections.forEach(sec => sec.lines.forEach(l => { if (LEADS.has(l.text)) l.text += ' …'; }));
 
 // ---------------- build: dedupe, paginate, ids ----------------
-// Lines flow into pages of 25; a page can hold the end of one section and the start of the next.
-const PAGE = 25, seen = new Set(), all = [];
+// Each section starts its own page; long sections split into pages of up to 30 lines.
+const PAGE = 30, seen = new Set(), pages = [];
 sections.forEach(sec => {
     const lines = sec.lines.filter(l => { const k = VoiceText.key(l.text); if (!k || seen.has(k)) return false; seen.add(k); return true; });
-    lines.forEach((l, i) => all.push(Object.assign({ section: sec.title, note: i === 0 ? sec.note : null, first: i === 0 }, l)));
-});
-const pages = [];
-all.forEach((l, i) => {
-    if (i % PAGE === 0) pages.push({ lines: [] });
-    pages[pages.length - 1].lines.push(l);
+    const n = Math.ceil(lines.length / PAGE);
+    for (let i = 0; i < n; i++) {
+        const chunk = lines.slice(Math.floor(i * lines.length / n), Math.floor((i + 1) * lines.length / n));   // even split
+        pages.push({ lines: chunk.map((l, li) => Object.assign({ section: sec.title + (n > 1 ? ` (${i + 1} of ${n})` : ''), note: i === 0 ? sec.note : null, first: li === 0 }, l)) });
+    }
 });
 const flat = [];
 pages.forEach((p, pi) => p.lines.forEach((l, li) => {
