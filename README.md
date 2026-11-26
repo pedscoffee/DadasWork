@@ -12,7 +12,7 @@ My son always wants to 'help' with Dada's Work and type on the computer. I had t
 | --- | --- |
 | ⌨️ **Magic Typing** (`index.html`) | Type the letter you see (keyboard) or trace it with a finger (touch). Every letter powers one of 17 animated backgrounds. Always starts by spelling "I LOVE YOU" ❤️ |
 | 🌊 **Submarine** | Steer a submarine through 10 underwater mazes (plus endless random mazes) to find the treasure |
-| 🚜 **Excavator** | Drive into dirt to dig tunnels down to buried treasure, 10 levels plus endless dig mode |
+| 🚜 **Excavator** | Drive into dirt to dig tunnels down to buried treasure, 10 levels plus endless dig mode. One tap or key press = one square |
 | 🎄 **Christmas Tree** | Pick decorations and tap the tree to place them. Your tree is saved for next time |
 | 🦃 **Dress the Turkey** | Count feathers up to 20. Give the turkey 17 feathers, count on from 8 to 15, or tap to count them and pick the number. A two-row "ten frame" shows 10 and some more |
 | 🚀 **Rocket Builder** | Drag shapes (circle, square, triangle, star, heart, hexagon, trapezoid and more) into the matching outlines, then count down from 10 and blast off |
@@ -22,7 +22,7 @@ My son always wants to 'help' with Dada's Work and type on the computer. I had t
 | 🛁 **Bubble Pop** | Bath-time bubbles float up with letters on them. Pop the ones with the letter you hear |
 | 🚒 **Fire Truck** | Race to the fire and spray it out |
 | 🚗 **Drive & Collect** | Touch-driving game for the littlest players |
-| 🏎️ **Racer** | Preschool-friendly racing |
+| 🏎️ **Racer** | Tap left or right to change lanes. Grab stars, hit ⚡ to zoom, bonk cones, pass three friendly cars. Always finishes 1st 🏆 |
 | 🏙️ **Town Adventure** | Drive around a playmat town: school, work, home, library |
 | 🎅 **Santa Delivery** | Fly over the snowy town and drop presents on every house |
 | ❄️ **Snowball Throw** | Knock down all the snowmen |

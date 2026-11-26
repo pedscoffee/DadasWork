@@ -351,34 +351,28 @@
             align-items: center;
         }
 
-        .joystick-container {
-            width: 150px;
-            height: 150px;
-            position: relative;
+        /* D-pad: one tap = one step */
+        .dpad {
+            display: grid;
+            grid-template-columns: repeat(3, 64px);
+            grid-template-rows: repeat(3, 64px);
+            gap: 6px;
         }
-
-        .joystick-base {
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle, rgba(255, 140, 0, 0.3), rgba(255, 140, 0, 0.1));
-            border: 3px solid rgba(255, 215, 0, 0.5);
-            border-radius: 50%;
-            position: absolute;
-        }
-
-        .joystick-stick {
-            width: 60px;
-            height: 60px;
-            background: radial-gradient(circle at 30% 30%, #FFD700, #FFA500);
+        .dpad-btn {
             border: 3px solid #FF8C00;
-            border-radius: 50%;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 4px 15px rgba(255, 165, 0, 0.6);
-            transition: all 0.1s ease;
+            border-radius: 16px;
+            background: radial-gradient(circle at 30% 30%, #FFD700, #FFA500);
+            font-size: 1.8rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(255, 165, 0, 0.5);
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
+        .dpad-btn:active { transform: scale(0.9); }
+        .dpad-btn.up { grid-column: 2; grid-row: 1; }
+        .dpad-btn.left { grid-column: 1; grid-row: 2; }
+        .dpad-btn.right { grid-column: 3; grid-row: 2; }
+        .dpad-btn.down { grid-column: 2; grid-row: 3; }
 
         .dig-btn {
             width: 100px;
@@ -574,9 +568,11 @@
         <canvas id="gameCanvas"></canvas>
 
         <div id="touchControls">
-            <div class="joystick-container">
-                <div class="joystick-base"></div>
-                <div class="joystick-stick" id="joystickStick"></div>
+            <div class="dpad" aria-label="Move one step">
+                <button class="dpad-btn up" data-dx="0" data-dy="-1" aria-label="Up">⬆️</button>
+                <button class="dpad-btn left" data-dx="-1" data-dy="0" aria-label="Left">⬅️</button>
+                <button class="dpad-btn right" data-dx="1" data-dy="0" aria-label="Right">➡️</button>
+                <button class="dpad-btn down" data-dx="0" data-dy="1" aria-label="Down">⬇️</button>
             </div>
             <button class="dig-btn" id="digButton">⛏️</button>
         </div>
@@ -627,13 +623,13 @@
 
         // Input state
         let keys = {};
-        let touchActive = false;
-        let joystickAngle = 0;
-        let joystickPower = 0;
-        let lastMoveTime = 0;
-        let digPressed = false;
-        let pointerTarget = null;
-        let pointerHeld = false;
+        // One input = one step. Taps made mid-move wait their turn (up to 3).
+        let stepQueue = [];
+        function requestStep(dx, dy) {
+            if (!gameActive) return;
+            if (player.moving) { if (stepQueue.length < 3) stepQueue.push({ dx, dy }); return; }
+            tryMove(dx, dy);
+        }
 
         // Grid state
         let grid = [];
@@ -913,91 +909,61 @@
 
         // Event listeners
         function setupEventListeners() {
-            // Keyboard
+            // Keyboard: one press = one step (holding the key does not repeat)
+            const KEY_DIRS = {
+                ArrowRight: [1, 0], d: [1, 0], D: [1, 0],
+                ArrowLeft: [-1, 0], a: [-1, 0], A: [-1, 0],
+                ArrowDown: [0, 1], s: [0, 1], S: [0, 1],
+                ArrowUp: [0, -1], w: [0, -1], W: [0, -1]
+            };
             document.addEventListener('keydown', (e) => {
                 if (!gameActive) return;
-                keys[e.key] = true;
-
                 if (e.key === ' ' || e.key === 'Enter') {
-                    tryDig();
+                    if (!e.repeat) tryDig();
                     e.preventDefault();
+                    return;
+                }
+                const dir = KEY_DIRS[e.key];
+                if (dir) {
+                    e.preventDefault();
+                    if (!e.repeat) requestStep(dir[0], dir[1]);
                 }
             });
 
-            document.addEventListener('keyup', (e) => {
-                keys[e.key] = false;
+            // D-pad buttons
+            document.querySelectorAll('.dpad-btn').forEach(btn => {
+                btn.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    requestStep(+btn.dataset.dx, +btn.dataset.dy);
+                });
             });
-
-            // Touch joystick
-            const joystickContainer = document.querySelector('.joystick-container');
-            const joystickStick = document.getElementById('joystickStick');
-
-            function handleTouch(e) {
-                if (!gameActive) return;
-                const rect = joystickContainer.getBoundingClientRect();
-                const centerX = rect.left + rect.width / 2;
-                const centerY = rect.top + rect.height / 2;
-
-                const touch = e.touches[0];
-                const deltaX = touch.clientX - centerX;
-                const deltaY = touch.clientY - centerY;
-
-                const distance = Math.min(Math.sqrt(deltaX * deltaX + deltaY * deltaY), 45);
-                joystickAngle = Math.atan2(deltaY, deltaX);
-                joystickPower = distance / 45;
-
-                const stickX = Math.cos(joystickAngle) * distance;
-                const stickY = Math.sin(joystickAngle) * distance;
-
-                joystickStick.style.transform = `translate(calc(-50% + ${stickX}px), calc(-50% + ${stickY}px))`;
-                touchActive = true;
-                e.preventDefault();
-            }
-
-            function endTouch() {
-                touchActive = false;
-                joystickPower = 0;
-                joystickStick.style.transform = 'translate(-50%, -50%)';
-            }
-
-            joystickContainer.addEventListener('touchstart', handleTouch);
-            joystickContainer.addEventListener('touchmove', handleTouch);
-            joystickContainer.addEventListener('touchend', endTouch);
 
             // Dig button
             const digButton = document.getElementById('digButton');
-            digButton.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                tryDig();
-            });
-            digButton.addEventListener('click', (e) => {
+            digButton.addEventListener('pointerdown', (e) => {
                 e.preventDefault();
                 tryDig();
             });
 
-            // Tap or drag on the play area to steer
-            function setPointerTarget(e) {
+            // Tap the play area: take ONE step toward where you tapped
+            canvas.addEventListener('pointerdown', (e) => {
+                if (!gameActive) return;
+                e.preventDefault();
                 const rect = canvas.getBoundingClientRect();
                 const cx = (e.clientX - rect.left) * (CANVAS_WIDTH / rect.width);
                 const cy = (e.clientY - rect.top) * (CANVAS_HEIGHT / rect.height);
-                pointerTarget = {
-                    x: Math.floor((cx - window.offsetX) / window.cellSize),
-                    y: Math.floor((cy - window.offsetY) / window.cellSize)
-                };
-            }
-            canvas.addEventListener('pointerdown', (e) => {
-                if (!gameActive) return;
-                pointerHeld = true;
-                canvas.setPointerCapture(e.pointerId);
-                setPointerTarget(e);
-                e.preventDefault();
+                // Compare to the excavator's centre in canvas pixels
+                const px = window.offsetX + (player.gridX + 0.5) * window.cellSize;
+                const py = window.offsetY + (player.gridY + 0.5) * window.cellSize;
+                const ddx = cx - px, ddy = cy - py;
+                if (Math.abs(ddx) < window.cellSize / 2 && Math.abs(ddy) < window.cellSize / 2) {
+                    tryDig(); // tapped the excavator itself: scoop!
+                } else if (Math.abs(ddx) > Math.abs(ddy)) {
+                    requestStep(ddx > 0 ? 1 : -1, 0);
+                } else {
+                    requestStep(0, ddy > 0 ? 1 : -1);
+                }
             });
-            canvas.addEventListener('pointermove', (e) => {
-                if (pointerHeld) setPointerTarget(e);
-            });
-            const releasePointer = () => { pointerHeld = false; };
-            canvas.addEventListener('pointerup', releasePointer);
-            canvas.addEventListener('pointercancel', releasePointer);
 
             // Window resize
             window.addEventListener('resize', setupCanvas);
@@ -1108,8 +1074,7 @@
             player.moving = false;
             player.facing = 0;
             player.digAnimProgress = 0;
-            pointerTarget = null;
-            pointerHeld = false;
+            stepQueue = [];
             document.getElementById('treasureDisplay').textContent = '0/1';
 
             // Store level
@@ -1144,48 +1109,9 @@
 
         // Update
         function update(timestamp) {
-            // Handle input for movement
-            if (!player.moving && timestamp - lastMoveTime > 120) {
-                let dx = 0, dy = 0;
-
-                // Keyboard
-                if (keys['ArrowRight'] || keys['d'] || keys['D']) dx = 1;
-                else if (keys['ArrowLeft'] || keys['a'] || keys['A']) dx = -1;
-                else if (keys['ArrowDown'] || keys['s'] || keys['S']) dy = 1;
-                else if (keys['ArrowUp'] || keys['w'] || keys['W']) dy = -1;
-
-                // Touch
-                // Tap / drag on the play area: drive toward the finger
-                if (pointerTarget && !(touchActive && joystickPower > 0.3)) {
-                    const ddx = pointerTarget.x - player.gridX;
-                    const ddy = pointerTarget.y - player.gridY;
-                    if (Math.abs(ddx) < 0.5 && Math.abs(ddy) < 0.5) {
-                        if (!pointerHeld) pointerTarget = null;
-                    } else if (Math.abs(ddx) > Math.abs(ddy)) {
-                        dx = ddx > 0 ? 1 : -1;
-                    } else {
-                        dy = ddy > 0 ? 1 : -1;
-                    }
-                }
-
-                if (touchActive && joystickPower > 0.3) {
-                    const angle = joystickAngle;
-                    if (Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle))) {
-                        dx = Math.cos(angle) > 0 ? 1 : -1;
-                    } else {
-                        dy = Math.sin(angle) > 0 ? 1 : -1;
-                    }
-                }
-
-                if (dx !== 0 || dy !== 0) {
-                    tryMove(dx, dy);
-                    lastMoveTime = timestamp;
-                }
-            }
-
             // Animate movement
             if (player.moving) {
-                const speed = 0.3;
+                const speed = 0.2;
                 const diffX = player.targetX - player.x;
                 const diffY = player.targetY - player.y;
 
@@ -1201,7 +1127,14 @@
 
                     // Check treasure
                     if (grid[player.gridY][player.gridX].type === 'T') {
+                        stepQueue = [];
                         victory();
+                    } else {
+                        // Next waiting tap (skip any that bump a wall)
+                        while (stepQueue.length && !player.moving) {
+                            const q = stepQueue.shift();
+                            tryMove(q.dx, q.dy);
+                        }
                     }
                 }
             }
