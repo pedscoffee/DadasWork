@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="favicon.ico">
+    <title>🔊 Game Voice</title>
+    <link rel="stylesheet" href="shell.css">
+    <style>
+        html, body { position: static; overflow: auto; touch-action: auto; background: linear-gradient(#6ec6ff, #d7f0ff) fixed; }
+        main { max-width: 680px; margin: 0 auto; padding: 80px 16px 40px; color: #1c5d99; }
+        h1 { color: #fff; text-shadow: 0 3px 0 #1c5d99; font-size: 40px; margin-bottom: 8px; }
+        .card { background: #fff; border-radius: 20px; padding: 16px 18px; margin: 14px 0; box-shadow: 0 6px 18px rgba(0,60,120,.15); }
+        .tip { font-size: 15px; line-height: 1.5; color: #37474f; }
+        .tip b { color: #1c5d99; }
+        .voice { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid #e3f2fd; }
+        .voice:first-child { border-top: none; }
+        .name { flex: 1; font-size: 17px; }
+        .name small { display: block; color: #78909c; font-size: 12px; }
+        .tag { font-size: 11px; background: #ffd166; color: #5a3e1b; border-radius: 8px; padding: 2px 6px; margin-left: 6px; }
+        button.sm { font: inherit; font-size: 15px; border: none; border-radius: 14px; padding: 8px 14px; cursor: pointer; background: #e3f2fd; color: #1c5d99; }
+        button.use { background: #ff4f9a; color: #fff; }
+        .voice.on { background: #fff8e1; border-radius: 12px; padding-left: 8px; }
+        #auto { margin-top: 6px; }
+    </style>
+</head>
+<body>
+    <div id="game-nav"><button id="nav-toggle" aria-label="Games">☰</button></div>
+    <div id="nav-overlay" class="hidden">
+        <button id="nav-close" aria-label="Close">✕</button>
+        <div class="nav-links"><!-- filled from games.js --></div>
+    </div>
+    <main>
+        <h1>🔊 Game Voice</h1>
+        <div class="card tip">
+            The games use the best voice on this device, picked automatically. Tap <b>Try</b> to hear any voice and
+            <b>Use</b> to pick it for every game on this device.
+            <br><br>
+            <b>Want a better voice on an iPad or iPhone?</b> Settings → Accessibility → Spoken Content → Voices → English,
+            then download an <b>Enhanced</b> or <b>Premium</b> voice (Ava and Zoe are nice). Come back here and it shows up at the top.
+            <br><br>
+            <b>On a computer:</b> Microsoft Edge has very natural "Online (Natural)" voices; Chrome has "Google US English".
+        </div>
+        <div class="card" id="list">Loading voices…</div>
+        <div class="card tip" id="auto"></div>
+    </main>
+<script src="voice.js"></script>
+<script>
+const SAMPLE = "Hi! Let's play! Find the word cat. C, A, T. Cat! You read it!";
+function render() {
+    const list = Voice.list(), cur = Voice.current();
+    const el = document.getElementById('list');
+    if (!list.length) { el.textContent = 'No voices found yet. (Some browsers load them after a moment.)'; return; }
+    let saved = null; try { saved = localStorage.getItem('dadas-voice'); } catch (e) { }
+    el.innerHTML = '';
+    list.forEach((v, i) => {
+        const row = document.createElement('div');
+        row.className = 'voice' + (cur && cur.voiceURI === v.voiceURI ? ' on' : '');
+        const good = /premium|enhanced|natural|neural|online|google/i.test(v.name);
+        row.innerHTML = `<div class="name">${v.name}${good ? '<span class="tag">natural</span>' : ''}${i === 0 ? '<span class="tag">best</span>' : ''}<small>${v.lang}${cur && cur.voiceURI === v.voiceURI ? ' · in use' : ''}</small></div>`;
+        const tryB = document.createElement('button'); tryB.className = 'sm'; tryB.textContent = '▶ Try';
+        tryB.onclick = () => { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(SAMPLE); u.voice = v; u.lang = v.lang; u.rate = .9; speechSynthesis.speak(u); };
+        const useB = document.createElement('button'); useB.className = 'sm use'; useB.textContent = 'Use';
+        useB.onclick = () => { Voice.choose(v); render(); Voice.say('Okay! I will use this voice.', { now: true }); };
+        row.append(tryB, useB);
+        el.appendChild(row);
+    });
+    const auto = document.getElementById('auto');
+    auto.innerHTML = saved ? 'You picked a voice for this device. <button class="sm" id="reset">Go back to automatic</button>' : 'Automatic: the games pick the best voice on this device.';
+    const r = document.getElementById('reset'); if (r) r.onclick = () => { Voice.choose(null); render(); };
+}
+render();
+speechSynthesis.addEventListener ? speechSynthesis.addEventListener('voiceschanged', render) : (speechSynthesis.onvoiceschanged = render);
+setTimeout(render, 800);
+document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
+document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
+</script>
+<script src="games.js"></script>
+</body>
+</html>

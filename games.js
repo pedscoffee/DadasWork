@@ -31,7 +31,8 @@ const DADAS_GAMES = [
     { file: 'fetch.html', emoji: '🐕', name: 'Fetch with Sully' },
     { file: 'fishing.html', emoji: '🎣', name: 'Fishing for 10' },
     { file: 'number-line.html', emoji: '🛻', name: 'Number Line Jumps' },
-    { file: 'recycle-sort.html', emoji: '♻️', name: 'Sort It!' }
+    { file: 'recycle-sort.html', emoji: '♻️', name: 'Sort It!' },
+    { file: 'voices.html', emoji: '🔊', name: 'Game Voice (for grown-ups)' }
 ];
 
 (function buildGameMenus() {
