@@ -161,14 +161,9 @@ const JobSite = (() => {
                 'text-decoration:none;box-shadow:0 6px 0 #b55d00;';
             return a;
         },
-        say(text) {
-            try {
-                if (!('speechSynthesis' in window)) return;
-                speechSynthesis.cancel();
-                const u = new SpeechSynthesisUtterance(text);
-                u.rate = 0.85; u.pitch = 1.15;
-                speechSynthesis.speak(u);
-            } catch (e) { }
+        say(text, now = false) {
+            if (typeof Voice !== 'undefined') return Voice.say(text, { now });
+            try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = .85; u.pitch = 1.15; speechSynthesis.speak(u); } catch (e) { }
         }
     };
     return api;

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>🎣 Fishing for 10</title>
+    <link rel="stylesheet" href="shell.css">
+</head>
+<body>
+    <canvas id="c"></canvas>
+    <button id="speak" aria-label="Say it again">🔊</button>
+    <div id="game-nav"><button id="nav-toggle" aria-label="Games">☰</button></div>
+    <div id="nav-overlay" class="hidden">
+        <button id="nav-close" aria-label="Close">✕</button>
+        <div class="nav-links"><!-- filled from games.js --></div>
+    </div>
+    <div id="start" class="screen">
+        <h1>🎣 Fishing for 10!</h1>
+        <p>Catch a fish, then catch the one that fills the bucket to 10.</p>
+        <p>7 and 3 make 10! 🐟</p>
+        <button class="big-btn" id="start-btn">Go Fishing!</button>
+    </div>
+
+<script src="voice.js"></script>
+<script src="scenery.js"></script>
+<script src="kit.js"></script>
+<script>
+// =============================================================
+// FISHING FOR 10: number pairs that make 10
+//  1. Catch any fish: its dots fill the bucket's ten frame.
+//  2. "How many more make 10?" Count the empty boxes, catch that fish.
+//     Right: the ten frame fills, "7 and 3 make 10!" + a star.
+//     Not quite: the dots show what it made ("7 and 5 make 12, too
+//     many!"), the fish flips back into the water, and the right fish
+//     starts to glow. Nothing blocks progress.
+//  3. Five 10s = a treasure chest ("10, 20, 30, 40, 50!").
+// =============================================================
+const canvas = document.getElementById('c');
+const ctx = Stage.init(canvas);
+const WATER = 200, SAND = 560;
+const FISH_COLORS = ['#ff7f50', '#ffb703', '#4fb3ff', '#9b5de5', '#2ec4b6', '#ff6fae', '#7bd389'];
+const BOAT_X = 500, ROD_TIP = { x: 610, y: 70 };
+let t = 0, last = 0, stage = 'menu';       // first | second | reeling | done
+let fish = [], first = null, second = null, hooked = null, wrong = null, idle = 0, tens = 0, stars = 0;
+let bubbles = [], particles = [], msg = null;
+
+// ---------- fish ----------
+function makeFish(n, lane) {
+    const dir = Math.random() < .5 ? 1 : -1;
+    return { n, x: Math.random() * 1000, y: 260 + lane * 62, dir, sp: 22 + Math.random() * 26, color: FISH_COLORS[(n + lane) % FISH_COLORS.length], wig: Math.random() * 6, out: false };
+}
+function stock() {
+    const nums = [];
+    while (nums.length < 5) { const n = 1 + Math.floor(Math.random() * 9); if (!nums.includes(n)) nums.push(n); }
+    fish = nums.map((n, i) => makeFish(n, i));
+}
+function ensure(n) {
+    // make sure the fish we need is swimming
+    if (!fish.some(f => f.n === n && !f.out)) {
+        const i = fish.findIndex(f => !f.out && f.n !== (first && first.n));
+        fish[i].n = n;
+    }
+}
+const need = () => 10 - first.n;
+
+// ---------- flow ----------
+function prompt() {
+    if (stage === 'first') return 'Catch a fish! Tap any fish.';
+    if (stage === 'second') return `${first.n}! How many more make ten? Count the empty boxes!`;
+    return '';
+}
+function startRound() {
+    first = null; second = null; wrong = null; idle = 0;
+    stage = 'first';
+    say(tens === 0 ? 'Catch a fish! Tap any fish.' : 'Catch another fish!');
+}
+function cast(f) {
+    if (hooked || (stage !== 'first' && stage !== 'second')) return;
+    idle = 0;
+    hooked = { f, t: 0, phase: 'down' };
+    f.hooked = true;
+    tone(700, .15, 'sine', .1, 300);
+}
+function landed(f) {
+    f.out = true;
+    if (stage === 'first') {
+        first = f;
+        splash();
+        say(`${NUM_WORDS[f.n]}! How many more make ten?`);
+        stage = 'second';
+        ensure(need());
+    } else {
+        second = f;
+        const sum = first.n + f.n;
+        if (sum === 10) {
+            stars++; tens++;
+            fanfare();
+            msg = { text: `${first.n} + ${f.n} = 10`, life: 3 };
+            say(`${NUM_WORDS[first.n]} and ${NUM_WORDS[f.n]} make ten!`);
+            stage = 'done';
+            for (let i = 0; i < 20; i++) particles.push({ x: 160, y: 120, vx: (Math.random() - .5) * 400, vy: -Math.random() * 300, life: 1.2, c: '#FFD93D' });
+            setTimeout(() => {
+                if (tens % 5 === 0) treasure();
+                else { stock(); startRound(); }
+            }, 3200);
+        } else {
+            // show what it made, then the fish swims home
+            wrong = { n: f.n, t: 0 };
+            boing();
+            say(sum > 10
+                ? `${NUM_WORDS[first.n]} and ${NUM_WORDS[f.n]} make ${NUM_WORDS[sum] || sum}. Too many! We need ${NUM_WORDS[need()]}.`
+                : `${NUM_WORDS[first.n]} and ${NUM_WORDS[f.n]} make ${NUM_WORDS[sum]}. Not ten yet! We need ${NUM_WORDS[need()]}.`);
+            idle = 99;   // the right fish glows now
+            setTimeout(() => {
+                wrong = null; second = null;
+                f.out = false; f.hooked = false; f.y = 260 + Math.floor(Math.random() * 5) * 62; f.x = Math.random() < .5 ? -60 : 1060;
+                splash();
+                ensure(need());
+            }, 2600);
+        }
+    }
+}
+function treasure() {
+    stage = 'treasure';
+    say(`Ten, twenty, thirty, forty, fifty! Treasure!`);
+    rain(['💰', '🐟', '⭐', '🐠', '💎', '🪙'], 36);
+    fanfare();
+    setTimeout(() => { stock(); startRound(); }, 4500);
+}
+
+// ---------- input ----------
+canvas.addEventListener('pointerdown', (e) => {
+    if (stage === 'menu') return;
+    const p = Stage.toWorld(e);
+    if (stage === 'first' || stage === 'second') {
+        const f = fish.filter(f => !f.out && !f.hooked).sort((a, b) => Math.hypot(p.x - a.x, p.y - a.y) - Math.hypot(p.x - b.x, p.y - b.y))[0];
+        if (f && Math.hypot(p.x - f.x, p.y - f.y) < 80) { cast(f); return; }
+        say(prompt());
+    }
+});
+document.getElementById('start-btn').addEventListener('click', () => {
+    document.getElementById('start').classList.add('hidden');
+    stock(); startRound();
+});
+document.getElementById('speak').addEventListener('click', () => say(prompt(), true));
+
+// ---------- update ----------
+function update(dt) {
+    idle += dt;
+    fish.forEach(f => {
+        if (f.out || f.hooked) return;
+        f.x += f.dir * f.sp * dt; f.wig += dt * 6;
+        if (f.x > 1080) f.dir = -1; if (f.x < -80) f.dir = 1;
+    });
+    if (hooked) {
+        const h = hooked, f = h.f;
+        h.t += dt;
+        if (h.phase === 'down' && h.t > .55) { h.phase = 'up'; h.t = 0; splash(); }
+        if (h.phase === 'up') {
+            // reel the fish up to the boat, then into the bucket
+            const k2 = Math.min(1, h.t / .9);
+            f.x += (ROD_TIP.x - f.x) * k2 * .12; f.y += (ROD_TIP.y + 60 - f.y) * k2 * .12;
+            if (h.t > .9) { hooked = null; landed(f); }
+        }
+    }
+    if (Math.random() < dt * 3) bubbles.push({ x: Math.random() * 1000, y: SAND, r: 3 + Math.random() * 5 });
+    bubbles.forEach(b => { b.y -= 40 * dt; b.x += Math.sin(b.y / 20) * .3; });
+    bubbles = bubbles.filter(b => b.y > WATER);
+    particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 500 * dt; p.life -= dt; }); particles = particles.filter(p => p.life > 0);
+    if (msg) { msg.life -= dt; if (msg.life <= 0) msg = null; }
+    if (idle > 9 && idle < 50 && (stage === 'first' || stage === 'second')) {
+        idle = stage === 'second' ? 50 : 0;
+        say(stage === 'second' ? `Count the empty boxes: ${NUM_WORDS[need()]}! Catch the ${NUM_WORDS[need()]}!` : prompt());
+    }
+}
+
+// ---------- drawing ----------
+function drawFish(f) {
+    const glow = stage === 'second' && idle > 9 && f.n === need() && !f.out;
+    ctx.save(); ctx.translate(f.x, f.y + Math.sin(f.wig) * 4);
+    if (f.hooked) ctx.rotate(-Math.PI / 2 * .6);
+    if (glow) { ctx.fillStyle = 'rgba(255,215,64,.45)'; ctx.beginPath(); ctx.ellipse(0, 0, 80 + Math.sin(t * 6) * 5, 50, 0, 0, 7); ctx.fill(); }
+    ctx.scale(f.hooked ? 1 : -f.dir, 1);
+    // tail
+    ctx.fillStyle = f.color;
+    ctx.beginPath(); ctx.moveTo(42, 0); ctx.lineTo(72, -22 + Math.sin(f.wig * 2) * 6); ctx.lineTo(72, 22 + Math.sin(f.wig * 2) * 6); ctx.fill();
+    // body
+    ctx.beginPath(); ctx.ellipse(0, 0, 54, 34, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.beginPath(); ctx.ellipse(-6, -12, 34, 12, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-34, -8, 8, 0, 7); ctx.fill();
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(-36, -8, 4, 0, 7); ctx.fill();
+    ctx.scale(f.hooked ? 1 : -f.dir, 1);   // un-flip for the number
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, 25, 0, 7); ctx.fill();
+    label(ctx, String(f.n), 0, 1, 34, '#1c5d99', '#fff');
+    // dots under the number (helps counting)
+    for (let i = 0; i < f.n; i++) {
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(-24 + (i % 5) * 12, 40 + Math.floor(i / 5) * 11, 4.5, 0, 7); ctx.fill();
+    }
+    ctx.restore();
+}
+function drawTenFrame() {
+    // the bucket's ten frame on the dock
+    const x = 40, y = 60, cell = 44;
+    ctx.fillStyle = '#8d6e63'; rr(ctx, x - 16, y - 16, cell * 5 + 32, cell * 2 + 70, 18); ctx.fill();
+    ctx.fillStyle = '#fff'; rr(ctx, x - 6, y - 6, cell * 5 + 12, cell * 2 + 12, 10); ctx.fill();
+    const a = first ? first.n : 0, b = second ? second.n : (wrong ? wrong.n : 0);
+    for (let i = 0; i < 10; i++) {
+        const cx = x + (i % 5) * cell, cy = y + Math.floor(i / 5) * cell;
+        ctx.strokeStyle = '#90caf9'; ctx.lineWidth = 3; ctx.strokeRect(cx + 2, cy + 2, cell - 4, cell - 4);
+        let col = null;
+        if (i < a) col = first.color; else if (i < a + b) col = (second || wrong) ? (second ? second.color : '#ff8a80') : null;
+        if (col) { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(cx + cell / 2, cy + cell / 2, cell * .34, 0, 7); ctx.fill(); }
+    }
+    // extra dots that don't fit (too many!)
+    const over = a + b - 10;
+    for (let i = 0; i < over; i++) { ctx.fillStyle = '#ff5252'; ctx.beginPath(); ctx.arc(x + cell * 5 + 30, y + 10 + i * 18, 8, 0, 7); ctx.fill(); }
+    // sentence under the frame
+    const text = first ? `${a} + ${b ? b : '?'} = ${b ? a + b : 10}` : 'Catch a fish!';
+    label(ctx, text, x + cell * 2.5, y + cell * 2 + 30, 26, '#fff', '#5d4037');
+}
+function draw() {
+    const c = Stage.begin();
+    const { vx0, vx1, vy0, vy1 } = Stage;
+    // sky
+    Scenery.sky(c, vx0, vy0, vx1 - vx0, WATER - vy0, '#6ec6ff', '#d7f0ff');
+    Scenery.sun(c, 880, 60, 30, t);
+    Scenery.clouds(c, t, { x0: vx0, x1: vx1, y0: 30, y1: 120, n: 4, size: 22, seed: 131 });
+    Scenery.birds(c, t, { x0: vx0, x1: vx1, y: 90, n: 3, size: 8, seed: 132 });
+    Scenery.hills(c, vx0, vx1, WATER, 50, '#9ad46b', 133, 3);
+    Scenery.trees(c, [740, 820, 960, 1060], WATER - 20, 60, { kind: 'pine', seed: 134 });
+    // water
+    const g = c.createLinearGradient(0, WATER, 0, SAND);
+    g.addColorStop(0, '#4fc3f7'); g.addColorStop(1, '#0277bd');
+    c.fillStyle = g; c.fillRect(vx0, WATER, vx1 - vx0, vy1 - WATER);
+    c.fillStyle = 'rgba(255,255,255,.35)';
+    for (let x = vx0; x < vx1; x += 60) { c.beginPath(); c.ellipse(x + (t * 20) % 60, WATER + 6 + Math.sin(x + t * 2) * 2, 22, 3, 0, 0, 7); c.fill(); }
+    // light rays
+    c.fillStyle = 'rgba(255,255,255,.06)';
+    for (let i = 0; i < 5; i++) { const rx = 120 + i * 200 + Math.sin(t * .4 + i) * 30; c.beginPath(); c.moveTo(rx, WATER); c.lineTo(rx + 60, WATER); c.lineTo(rx + 140, SAND); c.lineTo(rx + 40, SAND); c.fill(); }
+    // sand + seaweed + shells
+    c.fillStyle = '#f4d58d'; c.fillRect(vx0, SAND, vx1 - vx0, vy1 - SAND + 10);
+    c.strokeStyle = '#2e7d32'; c.lineWidth = 8; c.lineCap = 'round';
+    [60, 210, 380, 640, 800, 950].forEach((sx, i) => {
+        c.beginPath(); c.moveTo(sx, SAND);
+        for (let y = 0; y < 90 + i % 3 * 20; y += 10) c.lineTo(sx + Math.sin(t * 2 + y / 15 + i) * 8, SAND - y);
+        c.stroke();
+    });
+    emoji(c, '🐚', 300, SAND + 18, 26); emoji(c, '⭐', 720, SAND + 20, 22); emoji(c, '🪸', 880, SAND - 8, 40);
+    bubbles.forEach(b => { c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 2; c.beginPath(); c.arc(b.x, b.y, b.r, 0, 7); c.stroke(); });
+    // dock + boat
+    c.fillStyle = '#8d6e63'; c.fillRect(vx0, WATER - 22, 330 - vx0, 18);
+    for (let x = 20; x < 330; x += 60) c.fillRect(x, WATER - 10, 10, 50);
+    c.fillStyle = '#e63946';
+    c.beginPath(); c.moveTo(BOAT_X - 70, WATER - 30); c.lineTo(BOAT_X + 90, WATER - 30); c.lineTo(BOAT_X + 60, WATER + 8 + Math.sin(t * 2) * 2); c.lineTo(BOAT_X - 50, WATER + 8 + Math.sin(t * 2) * 2); c.fill();
+    c.fillStyle = '#fff'; c.fillRect(BOAT_X - 60, WATER - 24, 140, 5);
+    emoji(c, '🧒', BOAT_X, WATER - 58, 52);
+    // fishing rod + line
+    c.strokeStyle = '#6d4c41'; c.lineWidth = 6; c.beginPath(); c.moveTo(BOAT_X + 20, WATER - 50); c.lineTo(ROD_TIP.x, ROD_TIP.y); c.stroke();
+    let hx = ROD_TIP.x + Math.sin(t) * 10, hy = WATER + 60;
+    if (hooked) {
+        const f = hooked.f;
+        if (hooked.phase === 'down') { const k2 = Math.min(1, hooked.t / .55); hx = ROD_TIP.x + (f.x - ROD_TIP.x) * k2; hy = ROD_TIP.y + (f.y - ROD_TIP.y) * k2; }
+        else { hx = f.x; hy = f.y - 30; }
+    }
+    c.strokeStyle = 'rgba(255,255,255,.8)'; c.lineWidth = 2; c.beginPath(); c.moveTo(ROD_TIP.x, ROD_TIP.y); c.lineTo(hx, hy); c.stroke();
+    c.fillStyle = '#e63946'; c.beginPath(); c.arc(ROD_TIP.x + (hx - ROD_TIP.x) * .5, ROD_TIP.y + (hy - ROD_TIP.y) * .5, 6, 0, 7); c.fill();   // bobber
+    fish.forEach(f => { if (!f.out) drawFish(f); });
+    drawTenFrame();
+    // tens collected (a row of fish pairs)
+    for (let i = 0; i < 5; i++) { c.globalAlpha = i < tens % 5 || (tens && tens % 5 === 0 && stage === 'treasure') ? 1 : .25; emoji(c, '🐟', 330 + i * 40, 30, 30); }
+    c.globalAlpha = 1;
+    label(c, `⭐ ${stars}`, 940, 130, 28, '#ffd23f', '#1c5d99');
+    if (stage === 'second' && idle > 9) {
+        const f = fish.find(f => f.n === need() && !f.out);
+        if (f) emoji(c, '👆', f.x + 30, f.y + 70 + Math.sin(t * 6) * 6, 44);
+    }
+    if (stage === 'treasure') emoji(c, '💰', 500, 400 + Math.sin(t * 4) * 10, 120);
+    particles.forEach(p => { c.globalAlpha = Math.max(0, p.life); c.fillStyle = p.c; c.beginPath(); c.arc(p.x, p.y, 6, 0, 7); c.fill(); });
+    c.globalAlpha = 1;
+    if (msg) { c.globalAlpha = Math.min(1, msg.life); label(c, msg.text, 500, 300, 72, '#ffd23f', '#1c5d99'); c.globalAlpha = 1; }
+}
+function loop(ts) {
+    const dt = last ? Math.min((ts - last) / 1000, .05) : .016;
+    last = ts; t += dt;
+    if (stage !== 'menu') update(dt);
+    else fish.forEach(f => { f.x += f.dir * f.sp * dt; f.wig += dt * 6; if (f.x > 1080) f.dir = -1; if (f.x < -80) f.dir = 1; });
+    draw();
+    requestAnimationFrame(loop);
+}
+stock();
+requestAnimationFrame(loop);
+navMenu();
+</script>
+<script src="landscape.js"></script>
+<script src="games.js"></script>
+</body>
+</html>

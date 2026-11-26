@@ -45,6 +45,7 @@
         #goal-pic { font-size: clamp(44px, 10vw, 80px); line-height: 1; display: none; }
         #modes-btn { position: fixed; top: 12px; right: 12px; z-index: 20; border: 2px solid rgba(255,255,255,.7); background: rgba(28,93,153,.6); color: #fff;
             border-radius: 24px; padding: 8px 14px; font: inherit; font-size: 16px; cursor: pointer; display: none; }
+        @media (max-width: 600px) { #modes-btn { top: auto; bottom: calc(10px + env(safe-area-inset-bottom)); right: 10px; } #hud { padding-left: 62px; } }
         .rain { position: fixed; top: -60px; font-size: clamp(30px, 6vw, 56px); pointer-events: none; z-index: 1400; animation: fall linear forwards; }
         @keyframes fall { to { transform: translateY(115vh) rotate(360deg); } }
     </style>
@@ -82,6 +83,8 @@
         </div>
     </div>
 
+    <script src="voice.js"></script>
+    <script src="scenery.js"></script>
     <script>
         // ============================================
         // BUBBLE POP
@@ -128,15 +131,7 @@
                 o.connect(g).connect(AC.destination); o.start(now); o.stop(now + dur);
             } catch (e) { }
         }
-        function say(text) {
-            try {
-                if (!('speechSynthesis' in window)) return;
-                speechSynthesis.cancel();
-                const u = new SpeechSynthesisUtterance(text);
-                u.rate = 0.85; u.pitch = 1.2;
-                speechSynthesis.speak(u);
-            } catch (e) { }
-        }
+        function say(text, rate = .85, now = false) { Voice.say(text, { rate, now }); }
         const popSound = (big) => { tone(big ? 500 : 700, big ? 0.18 : 0.1, 'sine', big ? 0.3 : 0.15, big ? 1400 : 1200); };
         const fanfare = () => [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.25, 'triangle', 0.2, null, i * 0.12));
 
@@ -290,7 +285,7 @@
                 got++; sinceRight = 0; hinted = false;
                 renderDots();
                 if (got >= MODES[mode].pops) celebrate();
-                else say(mode === 'lower' || mode === 'match' ? `little ${target}` : String(target));
+                else say(mode === 'lower' || mode === 'match' ? `little ${target}` : String(target), .85, true);
             }
         }
 
@@ -365,6 +360,30 @@
             ctx.lineWidth = 3;
             for (let x = 0; x < W; x += tile) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, tubTop); ctx.stroke(); }
             for (let y = 0; y < tubTop; y += tile) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+            const m = Math.min(W, H);
+            // a little window with a moving sky
+            const wx = W * .06, wy = H * .16, ww = m * .26, wh = m * .2;
+            ctx.save();
+            ctx.beginPath(); ctx.rect(wx, wy, ww, wh); ctx.clip();
+            Scenery.sky(ctx, wx, wy, ww, wh, '#6ec6ff', '#cfeeff');
+            Scenery.sun(ctx, wx + ww * .78, wy + wh * .3, m * .025, t);
+            Scenery.clouds(ctx, t, { x0: wx, x1: wx + ww, y0: wy + wh * .25, y1: wy + wh * .6, n: 2, size: m * .03, speed: 6, seed: 121 });
+            Scenery.hills(ctx, wx, wx + ww, wy + wh, wh * .25, '#9ad46b', 122, 2);
+            ctx.restore();
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = m * .015;
+            ctx.strokeRect(wx, wy, ww, wh);
+            ctx.beginPath(); ctx.moveTo(wx + ww / 2, wy); ctx.lineTo(wx + ww / 2, wy + wh); ctx.moveTo(wx, wy + wh / 2); ctx.lineTo(wx + ww, wy + wh / 2); ctx.stroke();
+            // shelf with bath things
+            const sx = W * .7, sy = H * .32, sw = m * .26;
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(sx, sy, sw, m * .015);
+            ctx.fillStyle = 'rgba(0,0,0,.08)'; ctx.fillRect(sx, sy + m * .015, sw, m * .008);
+            ctx.font = `${m * .06}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = '#000';
+            ['🧴', '🧽', '🪥'].forEach((e, i) => ctx.fillText(e, sx + sw * (.18 + i * .32), sy + 2));
+            // towel on a hook
+            const tx = W * .9, ty = H * .48;
+            ctx.fillStyle = '#ff8fab'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(tx - m * .05, ty, m * .1, m * .16, m * .015) : ctx.rect(tx - m * .05, ty, m * .1, m * .16); ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(tx - m * .05, ty + m * .11, m * .1, m * .015);
+            ctx.fillStyle = '#b0bec5'; ctx.beginPath(); ctx.arc(tx, ty - m * .01, m * .012, 0, 7); ctx.fill();
         }
 
         function drawTub() {
@@ -514,7 +533,7 @@
         }
         document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => startMode(b.dataset.mode)));
         document.getElementById('modes-btn').addEventListener('click', () => {
-            playing = false; bubbles = []; speechSynthesis && speechSynthesis.cancel();
+            playing = false; bubbles = []; Voice.stop();
             document.getElementById('modes-btn').style.display = 'none';
             document.getElementById('start').classList.remove('hidden');
         });

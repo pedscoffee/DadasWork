@@ -28,7 +28,10 @@ const DADAS_GAMES = [
     { file: 'town-racer.html', emoji: '🏙️', name: 'Town Adventure' },
     { file: 'santa-delivery.html', emoji: '🎅', name: 'Santa Delivery' },
     { file: 'snowball-throw.html', emoji: '❄️', name: 'Snowball Throw' },
-    { file: 'fetch.html', emoji: '🐕', name: 'Fetch with Sully' }
+    { file: 'fetch.html', emoji: '🐕', name: 'Fetch with Sully' },
+    { file: 'fishing.html', emoji: '🎣', name: 'Fishing for 10' },
+    { file: 'number-line.html', emoji: '🛻', name: 'Number Line Jumps' },
+    { file: 'recycle-sort.html', emoji: '♻️', name: 'Sort It!' }
 ];
 
 (function buildGameMenus() {

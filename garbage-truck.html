@@ -46,6 +46,8 @@
         <button class="big-btn" id="start-btn">Start the Route!</button>
     </div>
 
+<script src="voice.js"></script>
+<script src="scenery.js"></script>
 <script>
 // =============================================================
 // GARBAGE TRUCK WORDS: sight words
@@ -86,14 +88,7 @@ function tone(f, d = .15, type = 'triangle', v = .18, slideTo, delay = 0) {
         o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d);
     } catch (e) { }
 }
-function say(text, rate = .85) {
-    try {
-        if (!('speechSynthesis' in window)) return;
-        speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text); u.rate = rate; u.pitch = 1.1;
-        speechSynthesis.speak(u);
-    } catch (e) { }
-}
+function say(text, rate = .85, now = false) { Voice.say(text, { rate, now }); }
 const beep = () => { [0, .3, .6].forEach(d => tone(1000, .15, 'square', .06, null, d)); };   // backing-up beeps
 const crash = () => { tone(140, .3, 'sawtooth', .1, 60); tone(400, .15, 'square', .05, 200, .05); };
 const ding = () => { tone(988, .12); tone(1319, .2, 'triangle', .18, null, .08); };
@@ -287,6 +282,12 @@ function draw() {
     const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
     g.addColorStop(0, '#6ec6ff'); g.addColorStop(1, '#d7f0ff');
     ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+    const vx0 = -ox / k - 20, vx1 = (W - ox) / k + 20;
+    Scenery.sun(ctx, 900, 160, 28, t);
+    Scenery.clouds(ctx, t, { x0: vx0, x1: vx1, y0: 150, y1: 230, n: 4, size: 22, seed: 81 });
+    Scenery.birds(ctx, t, { x0: vx0, x1: vx1, y: 190, n: 2, size: 8, seed: 82 });
+    Scenery.hills(ctx, vx0, vx1, 282, 70, '#b5dd8b', 83, 3);
+    Scenery.trees(ctx, [25, 215, 405, 595, 785, 975, -170, 1165], 282, 100, { kind: 'round', seed: 84 });
     // houses
     ['#ffcdb2', '#bde0fe', '#caffbf', '#ffd6a5', '#e2c2ff'].forEach((col, i) => {
         const hx = 120 + i * 190;
@@ -296,8 +297,18 @@ function draw() {
         ctx.fillStyle = '#fff'; ctx.fillRect(hx - 55, 185, 28, 26); ctx.fillRect(hx + 27, 185, 28, 26);
     });
     ctx.fillStyle = '#7cb342'; ctx.fillRect(-2000, 280, VW + 4000, CURB - 280);
+    // front walks, mailboxes, flowers
+    [120, 310, 500, 690, 880].forEach((hx, i) => {
+        ctx.fillStyle = '#d7ccc8'; ctx.beginPath(); ctx.moveTo(hx - 15, 280); ctx.lineTo(hx + 15, 280); ctx.lineTo(hx + 26, CURB); ctx.lineTo(hx - 26, CURB); ctx.fill();
+        ctx.fillStyle = '#5d4037'; ctx.fillRect(hx + 58, 330, 5, 40);
+        ctx.fillStyle = ['#1e88e5', '#e63946', '#2a9d8f', '#ffb703', '#9b5de5'][i]; ctx.fillRect(hx + 48, 318, 26, 16);
+    });
+    Scenery.flowers(ctx, vx0, vx1, 292, 316, 14, 5, 85);
+    Scenery.tufts(ctx, vx0, vx1, 380, 20, 9, 'rgba(51,105,30,.5)', 86);
     ctx.fillStyle = '#bdbdbd'; ctx.fillRect(-2000, CURB, VW + 4000, 20);   // sidewalk/curb
     ctx.fillStyle = '#5c5c5c'; ctx.fillRect(-2000, CURB + 20, VW + 4000, 2000);
+    ctx.strokeStyle = 'rgba(0,0,0,.12)'; ctx.lineWidth = 2;
+    for (let x = vx0 - (vx0 % 60); x < vx1; x += 60) { ctx.beginPath(); ctx.moveTo(x, CURB); ctx.lineTo(x, CURB + 20); ctx.stroke(); }
     ctx.fillStyle = '#fff'; for (let x = -40; x < VW + 40; x += 90) ctx.fillRect(x, ROAD + 30, 50, 8);
 
     cans.forEach((c, i) => { if (c && !(stage === 'grab' && i === active)) drawCan(c, i, c.x, CURB + c.drop); });
@@ -339,6 +350,7 @@ requestAnimationFrame(loop);
 document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
 document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
 </script>
+<script src="landscape.js"></script>
 <script src="games.js"></script>
 </body>
 </html>
