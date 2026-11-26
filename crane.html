@@ -193,7 +193,7 @@ let litFloor = 0;
 function finish() {
     const n = floors.length;
     if (JOB) JobSite.complete('stack', { floors: floors.slice() });
-    say(`${NUM[n]} floors! ${JOB ? 'Back to the job site to cut the ribbon!' : 'What a building!'}`);
+    say(`${NUM[n]} floors! ${JOB ? 'Now the finish crew!' : 'What a building!'}`);
     rain(['🎉', '⭐', '🏗️', '✨', '🏢']);
     setTimeout(() => {
         document.getElementById('end-msg').textContent = `${n} floors tall! ${stars ? 'You got ' + stars + ' star' + (stars > 1 ? 's' : '') + '! ⭐' : ''}`;

@@ -14,6 +14,7 @@ const DADAS_GAMES = [
     { file: 'dump-truck.html', emoji: '🚚', name: 'Dump Truck' },
     { file: 'cement-mixer.html', emoji: '🛢️', name: 'Cement Mixer' },
     { file: 'crane.html', emoji: '🏗️', name: 'Crane' },
+    { file: 'finish-crew.html', emoji: '🎨', name: 'Finish Crew' },
     { file: 'letter-train.html', emoji: '🚂', name: 'Letter Train' },
     { file: 'feed-animals.html', emoji: '🥕', name: 'Feed the Animals' },
     { file: 'bubble-pop.html', emoji: '🛁', name: 'Bubble Pop' },
@@ -22,7 +23,8 @@ const DADAS_GAMES = [
     { file: 'racer.html', emoji: '🏎️', name: 'Racer' },
     { file: 'town-racer.html', emoji: '🏙️', name: 'Town Adventure' },
     { file: 'santa-delivery.html', emoji: '🎅', name: 'Santa Delivery' },
-    { file: 'snowball-throw.html', emoji: '❄️', name: 'Snowball Throw' }
+    { file: 'snowball-throw.html', emoji: '❄️', name: 'Snowball Throw' },
+    { file: 'fetch.html', emoji: '🐕', name: 'Fetch with Sully' }
 ];
 
 (function buildGameMenus() {

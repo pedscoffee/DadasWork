@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>🎨 Finish Crew</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+        html, body { width: 100%; height: 100%; overflow: hidden; touch-action: none; position: fixed; background: #8fd3ff;
+            font-family: 'Arial Rounded MT Bold', 'Chalkboard SE', 'Comic Sans MS', sans-serif; }
+        canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+        .screen { position: fixed; inset: 0; z-index: 1500; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 18px; background: rgba(255, 209, 102, .94); text-align: center; padding: 20px; }
+        .screen.hidden { display: none; }
+        .screen h1 { font-size: clamp(36px, 8vw, 72px); color: #fff; text-shadow: 0 4px 0 #b5651d; }
+        .screen p { font-size: clamp(18px, 3.5vw, 26px); color: #5a3e1b; }
+        .big-btn { font: inherit; font-size: clamp(24px, 5vw, 36px); padding: 16px 48px; border-radius: 50px; border: 5px solid #fff; margin: 10px;
+            background: linear-gradient(135deg, #ffb703, #fb8500); color: #fff; cursor: pointer; box-shadow: 0 8px 0 #b55d00; }
+        #done-btn { position: fixed; bottom: 3vh; right: 3vw; z-index: 20; display: none; }
+        #speak { position: fixed; top: 12px; right: 12px; z-index: 20; width: 48px; height: 48px; border-radius: 50%; border: 2px solid rgba(255,255,255,.6);
+            background: rgba(0,0,0,.45); color: #fff; font-size: 22px; cursor: pointer; }
+        .rain { position: fixed; top: -60px; font-size: clamp(30px, 6vw, 56px); pointer-events: none; z-index: 1400; animation: fall linear forwards; }
+        @keyframes fall { to { transform: translateY(115vh) rotate(360deg); } }
+        #game-nav { position: fixed; top: 12px; left: 12px; z-index: 2000; }
+        #nav-toggle { background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.6); color: #fff; font-size: 24px; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; }
+        #nav-overlay { position: fixed; inset: 0; background: rgba(10,10,30,.95); z-index: 2001; display: flex; align-items: center; justify-content: center; transition: opacity .3s; }
+        #nav-overlay.hidden { opacity: 0; pointer-events: none; }
+        #nav-close { position: absolute; top: 24px; right: 24px; background: none; border: none; color: #fff; font-size: 40px; cursor: pointer; }
+        .nav-links { display: flex; flex-direction: column; gap: 12px; text-align: center; max-height: 85vh; overflow-y: auto; padding: 10px; }
+        .nav-links a { color: #fff; text-decoration: none; font-size: 22px; padding: 10px 30px; border-radius: 30px; background: rgba(255,255,255,.1); }
+    </style>
+</head>
+<body>
+    <canvas id="c"></canvas>
+    <button id="speak" aria-label="Say it again">🔊</button>
+    <button class="big-btn" id="done-btn">✅ All done!</button>
+    <div id="game-nav"><button id="nav-toggle" aria-label="Games">☰</button></div>
+    <div id="nav-overlay" class="hidden">
+        <button id="nav-close" aria-label="Close">✕</button>
+        <div class="nav-links"><!-- filled from games.js --></div>
+    </div>
+    <div id="start" class="screen">
+        <h1>🎨 Finish Crew</h1>
+        <p>Put in the windows, add the decorations, and paint it!</p>
+        <button class="big-btn" id="start-btn">Let's Finish It!</button>
+    </div>
+    <div id="end" class="screen hidden">
+        <h1>✨ All Finished! ✨</h1>
+        <p id="end-msg"></p>
+        <div id="end-btns"></div>
+    </div>
+
+<script src="jobsite.js"></script>
+<script>
+// =============================================================
+// FINISH CREW
+//  1. Windows: "Find the triangle window!" Tap a window piece and it
+//     flies into a matching hole. Any shape is fine; the asked one
+//     gets a star and every shape gets a one-line description.
+//  2. Decorations: position words. "Put the flag ON TOP of the
+//     building." Tap a glowing spot; any spot works.
+//  3. Paint: tap a paint can, then tap floors to paint them.
+// =============================================================
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const JOB = JobSite.inJob();
+const VW = 1000, VH = 600, GROUND = 540;
+const SHAPES = ['circle', 'square', 'triangle', 'star'];
+const SHAPE_TALK = {
+    circle: 'A circle is round, with no corners.',
+    square: 'A square has four sides, all the same.',
+    triangle: 'A triangle has three sides.',
+    star: 'A star has five points!'
+};
+const DECOR = [
+    { emoji: '🚩', name: 'flag', spot: 'top', ask: 'Put the flag on top of the building!' },
+    { emoji: '🐈', name: 'cat', spot: 'door', ask: 'Put the cat next to the door!' },
+    { emoji: '🌷', name: 'flowers', spot: 'under', ask: 'Put the flowers under the window!' }
+];
+const SPOT_WORDS = { top: 'on top of the building', door: 'next to the door', under: 'under the window', side: 'beside the building', right: 'beside the building' };
+const PAINTS = ['#e63946', '#ffb703', '#2a9d8f', '#457b9d', '#9b5de5', '#f15bb5', '#ffffff', '#8d6e63'];
+let W, H, k, ox, oy, t = 0, last = 0;
+
+let phase = 'menu';   // windows | door | decor | paint | done
+let building, floors = [], shapes = [], filled = [], askShape = null, flying = null;
+let decorIdx = 0, decor = [], brush = null, stars = 0, idle = 0, particles = [], msg = null, doorIn = 0;
+
+// ---------- sound ----------
+let AC = null;
+function tone(f, d = .15, type = 'triangle', v = .18, slideTo, delay = 0) {
+    try {
+        AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+        if (AC.state === 'suspended') AC.resume();
+        const n = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+        o.type = type; o.frequency.setValueAtTime(f, n);
+        if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, n + d);
+        g.gain.setValueAtTime(v, n); g.gain.exponentialRampToValueAtTime(.001, n + d);
+        o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d);
+    } catch (e) { }
+}
+const say = (s) => JobSite.say(s);
+const ding = () => { tone(988, .12); tone(1319, .2, 'triangle', .18, null, .08); };
+const clink = () => { tone(1500, .08, 'sine', .12); tone(2000, .1, 'sine', .08, null, .05); };
+const splat = () => tone(220, .25, 'sawtooth', .07, 80);
+const fanfare = () => [523, 659, 784, 1046, 784, 1046].forEach((f, i) => tone(f, .3, 'triangle', .18, null, i * .13));
+
+function resize() {
+    const DPR = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    k = Math.min(W / VW, H / VH);
+    ox = (W - VW * k) / 2; oy = (H - VH * k) / 2;
+    ctx.setTransform(DPR * k, 0, 0, DPR * k, DPR * ox, DPR * oy);
+}
+addEventListener('resize', resize);
+resize();
+const toWorld = (e) => ({ x: (e.clientX - ox) / k, y: (e.clientY - oy) / k });
+
+// Building geometry
+function geo() {
+    const n = floors.length;
+    return { x0: 130, base: GROUND - 14, bw: 380, fh: Math.min(95, 340 / (n + 1)), floors, roof: building.roof, s: 1 };
+}
+function slotXY(i) {
+    const g = geo(), sl = JobSite.windowSlots(floors.length)[i];
+    return { x: g.x0 + sl.u * g.bw, y: g.base - (sl.f + .5) * g.fh, r: Math.min(g.fh * .26, g.bw * .085) };
+}
+// Tray (right side)
+const TRAY = { x: 600, y: 90, w: 380, h: 420 };
+function trayPieces() {
+    if (phase === 'windows') {
+        const need = SHAPES.filter(sh => shapes.some((x, i) => x === sh && !filled[i]));
+        return need.map((sh, i) => ({ kind: 'shape', sh, x: TRAY.x + 100 + (i % 2) * 180, y: TRAY.y + 120 + Math.floor(i / 2) * 170, r: 52 }));
+    }
+    if (phase === 'paint') {
+        return PAINTS.map((c, i) => ({ kind: 'paint', c, x: TRAY.x + 70 + (i % 4) * 82, y: TRAY.y + 140 + Math.floor(i / 4) * 130, r: 36 }));
+    }
+    return [];
+}
+function openSpots() {
+    const used = decor.map(d => d.spot);
+    return ['top', 'door', 'under', 'side', 'right'].filter(s => !used.includes(s));
+}
+
+// ---------- flow ----------
+function setup() {
+    if (JOB) {
+        const st = JobSite.load();
+        building = JobSite.building(st);
+        floors = st.floors && st.floors.length ? st.floors.slice() : Array.from({ length: building.floors }, (_, i) => building.colors[i % building.colors.length]);
+    } else {
+        building = { name: 'building', roof: ['triangle', 'flat', 'castle'][Math.floor(Math.random() * 3)] };
+        const cols = [['#e63946', '#ffb703'], ['#2a9d8f', '#e9c46a'], ['#9b5de5', '#f15bb5']][Math.floor(Math.random() * 3)];
+        floors = Array.from({ length: 2 + Math.floor(Math.random() * 2) }, (_, i) => cols[i % 2]);
+    }
+    const n = JobSite.windowSlots(floors.length).length;
+    // every shape shows up at least once, then fill the rest at random
+    const bag = SHAPES.slice().sort(() => Math.random() - .5);
+    shapes = Array.from({ length: n }, (_, i) => i < 4 ? bag[i] : SHAPES[Math.floor(Math.random() * 4)]).sort(() => Math.random() - .5);
+    filled = shapes.map(() => false);
+    decor = []; decorIdx = 0; brush = null; stars = 0; doorIn = 0;
+}
+function start() {
+    setup();
+    phase = 'windows'; idle = 0;
+    nextShape();
+    document.getElementById('start').classList.add('hidden');
+    document.getElementById('end').classList.add('hidden');
+    say(`Let's put in the windows! Find the ${askShape} window!`);
+}
+function nextShape() {
+    const open = shapes.filter((x, i) => !filled[i]);
+    askShape = open.length ? open[Math.floor(Math.random() * open.length)] : null;
+}
+function prompt() {
+    if (phase === 'windows') return `Find the ${askShape} window!`;
+    if (phase === 'decor') return DECOR[decorIdx].ask;
+    if (phase === 'paint') return brush ? 'Tap the building to paint it!' : 'Pick a paint color!';
+    return '';
+}
+function placeWindow(sh) {
+    const i = shapes.findIndex((x, j) => x === sh && !filled[j]);
+    if (i < 0) return;
+    const from = trayPieces().find(p => p.sh === sh);
+    flying = { i, sh, x0: from.x, y0: from.y, t: 0 };
+    const right = sh === askShape;
+    if (right) { stars++; say(`${cap(sh)}! Yes! ${SHAPE_TALK[sh]}`); }
+    else say(`That's a ${sh}! ${SHAPE_TALK[sh]}`);
+    tone(600, .1);
+}
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+function windowsDone() {
+    phase = 'door'; doorIn = 0;
+    say('All the windows are in! Knock knock, here comes the door!');
+    tone(300, .1, 'square', .1, null, .8); tone(300, .1, 'square', .1, null, 1.1);
+}
+function startDecor() {
+    phase = 'decor'; decorIdx = 0; idle = 0;
+    setTimeout(() => say(prompt()), 300);
+}
+function placeDecor(spot) {
+    const d = DECOR[decorIdx];
+    decor.push({ emoji: d.emoji, spot, pop: 0 });
+    tone(700, .12, 'triangle', .15, 1000);
+    if (spot === d.spot) { stars++; ding(); say(`Yes! The ${d.name} is ${SPOT_WORDS[spot]}!`); burstAt(spot); }
+    else say(`Silly! The ${d.name} is ${SPOT_WORDS[spot]}!`);
+    decorIdx++;
+    if (decorIdx >= DECOR.length) setTimeout(startPaint, 2600);
+    else setTimeout(() => say(prompt()), 2400);
+}
+function startPaint() {
+    phase = 'paint'; brush = null; idle = 0;
+    say('Last job: paint it! Pick a color, then tap the building.');
+    setTimeout(() => { if (phase === 'paint') document.getElementById('done-btn').style.display = 'block'; }, 5000);
+}
+function finish() {
+    phase = 'done';
+    document.getElementById('done-btn').style.display = 'none';
+    fanfare();
+    const decorSave = decor.map(d => ({ emoji: d.emoji, spot: d.spot }));
+    if (JOB) JobSite.complete('finish', { shapes: shapes.slice(), decor: decorSave, paint: floors.slice() });
+    say(JOB ? `The ${building.name} is finished! Back to the job site to cut the ribbon!` : 'Beautiful!');
+    rain(['🎨', '⭐', '✨', '🖌️', '🪟']);
+    setTimeout(() => {
+        document.getElementById('end-msg').textContent = stars ? `You got ${stars} star${stars > 1 ? 's' : ''}! ⭐` : 'It looks great!';
+        const btns = document.getElementById('end-btns'); btns.innerHTML = '';
+        if (JOB) btns.appendChild(JobSite.backButton('Cut the Ribbon! ✂️'));
+        const again = document.createElement('button');
+        again.className = 'big-btn'; again.textContent = 'Finish Another';
+        again.onclick = () => { phase = 'menu'; start(); };
+        btns.appendChild(again);
+        document.getElementById('end').classList.remove('hidden');
+    }, 2600);
+}
+function burstAt(spot) {
+    const p = JobSite.spotXY(spot, geo());
+    for (let i = 0; i < 16; i++) particles.push({ x: p.x, y: p.y - 20, vx: (Math.random() - .5) * 300, vy: -Math.random() * 300, life: 1, c: '#FFD93D' });
+}
+function rain(emojis) {
+    for (let i = 0; i < 30; i++) setTimeout(() => {
+        const e = document.createElement('div');
+        e.className = 'rain'; e.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        e.style.left = Math.random() * 95 + 'vw'; e.style.animationDuration = (2 + Math.random() * 2) + 's';
+        document.body.appendChild(e); setTimeout(() => e.remove(), 4200);
+    }, i * 70);
+}
+
+// ---------- input ----------
+canvas.addEventListener('pointerdown', (e) => {
+    const p = toWorld(e);
+    idle = 0;
+    if (phase === 'windows' && !flying) {
+        const hit = trayPieces().find(q => Math.hypot(p.x - q.x, p.y - q.y) < q.r + 20);
+        if (hit) { placeWindow(hit.sh); return; }
+        // tapping a hole directly also works: fill it with its own shape
+        const slots = JobSite.windowSlots(floors.length);
+        for (let i = 0; i < slots.length; i++) {
+            const s = slotXY(i);
+            if (!filled[i] && Math.hypot(p.x - s.x, p.y - s.y) < s.r + 18) { placeWindow(shapes[i]); return; }
+        }
+        say(prompt());
+    } else if (phase === 'decor') {
+        const g = geo();
+        const hit = openSpots().find(sp => { const q = JobSite.spotXY(sp, g); return Math.hypot(p.x - q.x, p.y - (q.y - q.size / 2)) < 60; });
+        if (hit) placeDecor(hit); else say(prompt());
+    } else if (phase === 'paint') {
+        const can = trayPieces().find(q => Math.hypot(p.x - q.x, p.y - q.y) < q.r + 16);
+        if (can) { brush = can.c; tone(500 + PAINTS.indexOf(can.c) * 60, .12); return; }
+        const g = geo();
+        if (p.x > g.x0 - 10 && p.x < g.x0 + g.bw + 10 && p.y < g.base && p.y > g.base - floors.length * g.fh) {
+            if (!brush) { say('Pick a paint color first!'); return; }
+            const f = Math.floor((g.base - p.y) / g.fh);
+            floors[f] = brush; splat();
+            for (let i = 0; i < 20; i++) particles.push({ x: p.x, y: p.y, vx: (Math.random() - .5) * 260, vy: (Math.random() - .7) * 260, life: .8, c: brush });
+            document.getElementById('done-btn').style.display = 'block';
+        }
+    }
+});
+document.getElementById('start-btn').addEventListener('click', start);
+document.getElementById('done-btn').addEventListener('click', finish);
+document.getElementById('speak').addEventListener('click', () => say(prompt()));
+
+// ---------- update ----------
+function update(dt) {
+    idle += dt;
+    if (flying) {
+        flying.t += dt / .55;
+        if (flying.t >= 1) {
+            filled[flying.i] = true; clink();
+            const s = slotXY(flying.i);
+            for (let i = 0; i < 10; i++) particles.push({ x: s.x, y: s.y, vx: (Math.random() - .5) * 200, vy: -Math.random() * 200, life: .7, c: '#bde0fe' });
+            flying = null;
+            if (filled.every(Boolean)) setTimeout(windowsDone, 1800);
+            else { nextShape(); setTimeout(() => { if (phase === 'windows') say(`Now find the ${askShape} window!`); }, 1800); }
+        }
+    }
+    if (phase === 'door') { doorIn = Math.min(1, doorIn + dt / 1.2); if (doorIn >= 1) { phase = 'door-wait'; ding(); setTimeout(startDecor, 900); } }
+    decor.forEach(d => d.pop = Math.min(1, d.pop + dt * 3));
+    particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 500 * dt; p.life -= dt; });
+    particles = particles.filter(p => p.life > 0);
+    if (idle > 10 && ['windows', 'decor', 'paint'].includes(phase)) { idle = 0; say(prompt()); }
+}
+
+// ---------- draw ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function emoji(e, x, y, size, base = 'middle') { ctx.font = `${size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = base; ctx.fillText(e, x, y); }
+function windowPiece(sh, x, y, r, glow) {
+    JobSite.shapePath(ctx, sh, x, y, r);
+    ctx.fillStyle = '#bde0fe'; ctx.fill();
+    ctx.strokeStyle = glow ? '#ff8c00' : '#fff'; ctx.lineWidth = glow ? 7 : 5; ctx.stroke();
+}
+function draw() {
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const g0 = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    g0.addColorStop(0, '#6ec6ff'); g0.addColorStop(1, '#d7f0ff');
+    ctx.fillStyle = g0; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+    ctx.fillStyle = '#7cb342'; ctx.fillRect(-2000, GROUND, VW + 4000, 2000);
+    ctx.fillStyle = '#cfd8dc'; ctx.fillRect(110, GROUND - 14, 420, 14);
+    if (!floors.length) return;
+
+    const g = geo();
+    const showDecor = decor.filter(d => d.pop >= 1);
+    JobSite.drawBuilding(ctx, Object.assign({}, g, {
+        filled, shapes, outlines: phase === 'windows', windows: 'holes',
+        door: phase !== 'windows' && phase !== 'menu' && (phase !== 'door' || doorIn >= 1), decor: showDecor
+    }));
+    // the door swinging in
+    if (phase === 'door' && doorIn < 1) {
+        const dw = g.bw * .17, dh = g.fh * .72;
+        ctx.fillStyle = '#6d4c41';
+        rr(g.x0 + g.bw / 2 - dw / 2 + (1 - doorIn) * 400, g.base - dh, dw, dh, 8); ctx.fill();
+    }
+    // decorations popping in
+    decor.filter(d => d.pop < 1).forEach(d => {
+        const q = JobSite.spotXY(d.spot, g);
+        emoji(d.emoji, q.x, q.y, q.size * (0.4 + 0.6 * d.pop), 'bottom');
+    });
+    // glowing spots to choose from
+    if (phase === 'decor') {
+        openSpots().forEach(sp => {
+            const q = JobSite.spotXY(sp, g);
+            const pulse = 1 + Math.sin(t * 5) * .1;
+            ctx.setLineDash([8, 6]); ctx.strokeStyle = '#ff8c00'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.arc(q.x, q.y - q.size / 2, 30 * pulse, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fill();
+        });
+        // the item to place, big in the tray
+        const d = DECOR[decorIdx];
+        if (d) {
+            ctx.fillStyle = 'rgba(255,255,255,.85)'; rr(TRAY.x + 60, TRAY.y + 40, 260, 260, 30); ctx.fill();
+            emoji(d.emoji, TRAY.x + 190, TRAY.y + 170 + Math.sin(t * 4) * 8, 150);
+            ctx.fillStyle = '#5a3e1b'; ctx.font = 'bold 30px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(d.ask.replace('Put the ', '').replace('!', ''), TRAY.x + 190, TRAY.y + 340);
+            if (idle > 5) {
+                const q = JobSite.spotXY(d.spot, g);
+                emoji('👆', q.x + 20, q.y - q.size / 2 + 50 + Math.sin(t * 6) * 8, 46);
+            }
+        }
+    }
+    // tray: window pieces or paint cans
+    if (phase === 'windows' || phase === 'paint') {
+        ctx.fillStyle = 'rgba(255,255,255,.55)'; rr(TRAY.x, TRAY.y, TRAY.w, TRAY.h, 24); ctx.fill();
+        ctx.fillStyle = '#5a3e1b'; ctx.font = 'bold 30px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(phase === 'windows' ? `Find the ${askShape}!` : 'Pick a color!', TRAY.x + TRAY.w / 2, TRAY.y + 40);
+        trayPieces().forEach(q => {
+            if (q.kind === 'shape') {
+                if (flying && flying.sh === q.sh && shapes.filter((x, i) => x === q.sh && !filled[i]).length === 1) return;
+                const glow = q.sh === askShape && idle > 4;
+                const bob = glow ? Math.sin(t * 8) * 6 : 0;
+                windowPiece(q.sh, q.x, q.y + bob, q.r, glow);
+                ctx.fillStyle = '#5a3e1b'; ctx.font = '20px sans-serif'; ctx.fillText(q.sh, q.x, q.y + q.r + 26);
+            } else {
+                // paint can
+                ctx.fillStyle = '#90a4ae'; rr(q.x - 30, q.y - 26, 60, 60, 8); ctx.fill();
+                ctx.fillStyle = q.c; ctx.beginPath(); ctx.ellipse(q.x, q.y - 26, 30, 10, 0, 0, 7); ctx.fill();
+                ctx.fillStyle = q.c; rr(q.x - 30, q.y - 6, 60, 22, 4); ctx.fill();
+                if (brush === q.c) { ctx.strokeStyle = '#ff8c00'; ctx.lineWidth = 6; rr(q.x - 40, q.y - 44, 80, 92, 12); ctx.stroke(); }
+            }
+        });
+    }
+    // window piece in flight
+    if (flying) {
+        const s = slotXY(flying.i), tt = flying.t;
+        const x = flying.x0 + (s.x - flying.x0) * tt, y = flying.y0 + (s.y - flying.y0) * tt - Math.sin(tt * Math.PI) * 80;
+        windowPiece(flying.sh, x, y, 52 + (s.r - 52) * tt, false);
+    }
+    // brush follows the last tap
+    if (phase === 'paint' && brush) { emoji('🖌️', 870, 520, 60); ctx.fillStyle = brush; ctx.beginPath(); ctx.arc(830, 555, 14, 0, 7); ctx.fill(); }
+    // stars
+    ctx.fillStyle = '#5a3e1b'; ctx.font = 'bold 30px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(`⭐ ${stars}`, 940, 40);
+    particles.forEach(p => { ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, 7); ctx.fill(); });
+    ctx.globalAlpha = 1;
+}
+
+function loop(ts) {
+    const dt = last ? Math.min((ts - last) / 1000, .05) : .016;
+    last = ts; t += dt;
+    if (phase !== 'menu') update(dt);
+    draw();
+    requestAnimationFrame(loop);
+}
+setup();
+if (JOB) document.querySelector('#start h1').textContent = `🎨 Finish the ${building.name}`;
+requestAnimationFrame(loop);
+
+document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
+document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
+</script>
+<script src="games.js"></script>
+</body>
+</html>

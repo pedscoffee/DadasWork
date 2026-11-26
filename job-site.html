@@ -64,6 +64,7 @@ const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 let W, H, G, s, t = 0, last = 0;
 let state = JobSite.load();
+const RIBBON = JobSite.stepIndex('ribbon');
 let ribbon = { cut: false, t: 0 };       // ribbon cutting animation
 let slide = 0;                          // building sliding off to town after the ribbon
 
@@ -200,32 +201,17 @@ function drawLot() {
         ctx.fillStyle = '#cfd8dc'; rr(x0 - 10 * s, G - 14 * s, L.bw + 20 * s, 22 * s, 4 * s); ctx.fill();
         ctx.fillStyle = '#b0bec5'; ctx.fillRect(x0 - 10 * s, G + 2 * s, L.bw + 20 * s, 6 * s);
     }
-    // Floors from the crane
+    // Floors from the crane (windows, paint and decorations once the finish crew is done)
     if (step >= 4) {
         const floors = state.floors && state.floors.length ? state.floors : Array(b.floors).fill(b.colors[0]);
-        let y = G - 14 * s;
-        floors.forEach((col, i) => {
-            y -= L.fh;
-            ctx.fillStyle = col; rr(x0, y, L.bw, L.fh, 4 * s); ctx.fill();
-            ctx.strokeStyle = 'rgba(0,0,0,.15)'; ctx.lineWidth = 2 * s; ctx.strokeRect(x0, y, L.bw, L.fh);
-            // windows (and a door on the ground floor)
-            for (let k = 0; k < 4; k++) {
-                const wx = x0 + L.bw * (0.12 + k * 0.22), ww = L.bw * 0.12;
-                if (i === 0 && k === 1) {
-                    ctx.fillStyle = '#6d4c41'; rr(wx, y + L.fh * .25, ww * 1.3, L.fh * .75, 6 * s); ctx.fill();
-                    ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(wx + ww * 1.1, y + L.fh * .65, 3 * s, 0, 7); ctx.fill();
-                } else if (!(i === 0 && k === 2)) {
-                    ctx.fillStyle = '#bde0fe'; rr(wx, y + L.fh * .22, ww, L.fh * .5, 4 * s); ctx.fill();
-                    ctx.strokeStyle = '#fff'; ctx.lineWidth = 3 * s; ctx.stroke();
-                }
-            }
+        const finished = step >= RIBBON;
+        JobSite.drawBuilding(ctx, {
+            x0, base: G - 14 * s, bw: L.bw, fh: L.fh, s, roof: b.roof,
+            floors: finished && state.paint && state.paint.length ? state.paint : floors,
+            windows: finished ? 'glass' : 'holes', shapes: state.shapes, door: finished,
+            decor: finished ? state.decor : []
         });
-        drawRoof(b.roof, x0, y, L.bw, L.fh);
-        // flag on top
-        ctx.font = `${34 * s}px sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
-        ctx.fillText('🚩', x0 + L.bw * .5 - 4 * s, y - (b.roof === 'triangle' ? L.fh * .8 : L.fh * .3));
-        // ribbon across the door
-        if (state.step === 4 || ribbon.cut) drawRibbon(x0, L);
+        if (state.step === RIBBON || ribbon.cut) drawRibbon(x0, L);
     }
     // The letter he wrote in the wet cement, as a stepping stone out front
     if (step >= 3 && state.scribble && state.scribble.length) {
@@ -295,7 +281,7 @@ function cutRibbon() {
 
 // Tap on the lot: the scissors (ribbon step), otherwise repeat the prompt
 canvas.addEventListener('pointerdown', (e) => {
-    if (state.step === 4 && !ribbon.cut) {
+    if (state.step === RIBBON && !ribbon.cut) {
         const L = lot();
         if (Math.abs(e.clientX - L.cx) < L.bw * .75 && e.clientY > G - 14 * s - L.fh * 2.5 && e.clientY < G + 20 * s) { cutRibbon(); return; }
     }
@@ -308,7 +294,7 @@ document.getElementById('newjob').addEventListener('click', (e) => {
     if (++newJobTaps < 2) { btn.textContent = 'tap again to start over'; setTimeout(() => { newJobTaps = 0; btn.textContent = '↺ new building'; }, 2500); return; }
     newJobTaps = 0; btn.textContent = '↺ new building';
     // Skip this building and start the next one fresh
-    const s0 = JobSite.load(); s0.building = (s0.building + 1) % JobSite.BUILDINGS.length; s0.step = 0; s0.floors = []; JobSite.save(s0);
+    const s0 = JobSite.load(); s0.building = (s0.building + 1) % JobSite.BUILDINGS.length; s0.step = 0; s0.floors = []; s0.scribble = []; s0.shapes = []; s0.decor = []; s0.paint = []; JobSite.save(s0);
     state = s0; buildButtons(); JobSite.say(prompt());
 });
 
