@@ -12,11 +12,14 @@ My son always wants to 'help' with Dada's Work and type on the computer. I had t
 | --- | --- |
 | ⌨️ **Magic Typing** (`index.html`) | Type the letter you see (keyboard) or trace it with a finger (touch). Every letter powers one of 17 animated backgrounds. Always starts by spelling "I LOVE YOU" ❤️ |
 | 🌊 **Submarine** | Steer a submarine through 10 underwater mazes (plus endless random mazes) to find the treasure |
+| 🏗️ **Job Site** (`job-site.html`) | Build a whole building one machine at a time: excavator digs the hole, dump truck fills it with gravel, cement mixer pours the floor, crane stacks the floors, then cut the ribbon! Finished buildings move into your town. Progress is saved |
 | 🚜 **Excavator** | Drive into dirt to dig tunnels down to buried treasure, 10 levels plus endless dig mode. One tap or key press = one square |
 | 🎄 **Christmas Tree** | Pick decorations and tap the tree to place them. Your tree is saved for next time |
 | 🦃 **Dress the Turkey** | Count feathers up to 20. Give the turkey 17 feathers, count on from 8 to 15, or tap to count them and pick the number. A two-row "ten frame" shows 10 and some more |
 | 🚀 **Rocket Builder** | Drag shapes (circle, square, triangle, star, heart, hexagon, trapezoid and more) into the matching outlines, then count down from 10 and blast off |
-| 🚚 **Dump Truck** | Get loaded up by the digger, back up to the hole (beep beep!), and dump. Fill the hole to build a house, castle, school… |
+| 🚚 **Dump Truck** | Tap the digger to scoop rocks into the truck one at a time (counted out loud on a ten frame), back up to the hole (beep beep!), and dump. Fill the hole to build a house, castle, school… |
+| 🛢️ **Cement Mixer** | Load the mixer and spin the drum 10 times, pour into the numbered sections ("pour in number 3!"), smooth it, and write your letter in the wet cement |
+| 🏗️ **Crane** | Pick the next floor to follow the pattern on the plan, then tap to drop it as the crane swings. Floors are counted, then the roof goes on |
 | 🚂 **Letter Train** | Fill each train car with the right letter to spell a word, then the train chugs away. The first word is always LOVE ❤️ |
 | 🥕 **Feed the Animals** | Drag each food to the animal who eats it (or just tap the animal). Wrong guesses get a polite "no thank you!" |
 | 🛁 **Bubble Pop** | Bath-time bubbles float up with letters on them. Pop the ones with the letter you hear |

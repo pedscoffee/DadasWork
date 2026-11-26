@@ -591,6 +591,7 @@
         </div>
     </div>
 
+    <script src="jobsite.js"></script>
     <script>
         // Game configuration
         const CELL_SIZE = 50;
@@ -629,6 +630,34 @@
             if (!gameActive) return;
             if (player.moving) { if (stepQueue.length < 3) stepQueue.push({ dx, dy }); return; }
             tryMove(dx, dy);
+        }
+
+        // Construction Site job mode (?job=1): dig out the whole foundation
+        const JOB_MODE = typeof JobSite !== 'undefined' && JobSite.inJob();
+        let isJob = false;
+        const JOB_LEVEL = {
+            name: 'Dig the Foundation',
+            cols: 13,
+            rows: 9,
+            layout: [
+                "#############",
+                "#E..........#",
+                "#...........#",
+                "#...FFFFFFF.#",
+                "#...FFFFFFF.#",
+                "#...FFFFFFF.#",
+                "#...........#",
+                "#...........#",
+                "#############"
+            ]
+        };
+        function foundationLeft() {
+            let n = 0;
+            grid.forEach(row => row.forEach(c => { if (c.type === 'F') n++; }));
+            return n;
+        }
+        function updateJobHud() {
+            if (isJob) document.getElementById('treasureDisplay').textContent = foundationLeft() + ' left';
         }
 
         // Grid state
@@ -981,6 +1010,7 @@
         function startLevel(levelIndex) {
             currentLevel = levelIndex;
             isFreePlay = false;
+            isJob = false;
             document.getElementById('levelDisplay').textContent = (levelIndex + 1) + ': ' + levels[levelIndex].name;
             startGame();
         }
@@ -1029,6 +1059,7 @@
         // Start free play
         function startFreePlay() {
             isFreePlay = true;
+            isJob = false;
             document.getElementById('levelDisplay').textContent = 'Endless Dig';
             startGame();
         }
@@ -1040,7 +1071,9 @@
 
             // Get level
             let level;
-            if (isFreePlay) {
+            if (isJob) {
+                level = JOB_LEVEL;
+            } else if (isFreePlay) {
                 level = generateRandomLevel();
             } else {
                 level = levels[currentLevel];
@@ -1076,6 +1109,7 @@
             player.digAnimProgress = 0;
             stepQueue = [];
             document.getElementById('treasureDisplay').textContent = '0/1';
+            updateJobHud();
 
             // Store level
             window.currentLevelData = level;
@@ -1125,8 +1159,12 @@
                     player.gridY = player.targetY;
                     player.moving = false;
 
-                    // Check treasure
-                    if (grid[player.gridY][player.gridX].type === 'T') {
+                    // Check treasure (or a finished foundation in job mode)
+                    updateJobHud();
+                    if (isJob && foundationLeft() === 0) {
+                        stepQueue = [];
+                        if (gameActive) victory();
+                    } else if (grid[player.gridY][player.gridX].type === 'T') {
                         stepQueue = [];
                         victory();
                     } else {
@@ -1164,7 +1202,8 @@
             else if (dy < 0) player.facing = 3;
 
             // Driving into dirt digs it out automatically (easier for little hands)
-            if (cell.type === 'D') {
+            if (cell.type === 'D' || cell.type === 'F') {
+                if (cell.type === 'F') cell.hole = true;
                 cell.type = '.';
                 player.digAnimProgress = 1;
                 digCount++;
@@ -1200,10 +1239,13 @@
 
             const cell = grid[digY][digX];
 
-            if (cell.type === 'D') {
+            if (cell.type === 'D' || cell.type === 'F') {
+                if (cell.type === 'F') cell.hole = true;
                 cell.type = '.';
                 player.digAnimProgress = 1;
                 digCount++;
+                updateJobHud();
+                if (isJob && foundationLeft() === 0) setTimeout(victory, 400);
                 // document.getElementById('digCount').textContent = 'Digs: ' + digCount; // Removed as per new HUD
 
                 // Create dust effect
@@ -1280,7 +1322,7 @@
                         ctx.strokeStyle = '#404040';
                         ctx.lineWidth = 2;
                         ctx.strokeRect(screenX, screenY, window.cellSize, window.cellSize);
-                    } else if (cell.type === 'D') {
+                    } else if (cell.type === 'D' || cell.type === 'F') {
                         // Dirt
                         const dirtGradient = ctx.createLinearGradient(
                             screenX, screenY,
@@ -1308,6 +1350,14 @@
                         ctx.strokeStyle = '#5c3a1f';
                         ctx.lineWidth = 1;
                         ctx.strokeRect(screenX, screenY, window.cellSize, window.cellSize);
+                        if (cell.type === 'F') {
+                            // Orange "dig here" marker
+                            ctx.setLineDash([6, 5]);
+                            ctx.strokeStyle = '#FF8C00';
+                            ctx.lineWidth = 3;
+                            ctx.strokeRect(screenX + 4, screenY + 4, window.cellSize - 8, window.cellSize - 8);
+                            ctx.setLineDash([]);
+                        }
                     } else if (cell.type === 'T') {
                         // Treasure
                         ctx.fillStyle = '#F5DEB3';
@@ -1337,8 +1387,8 @@
 
                         ctx.restore();
                     } else {
-                        // Empty
-                        ctx.fillStyle = '#F5DEB3';
+                        // Empty (dug-out foundation is a deeper brown)
+                        ctx.fillStyle = cell.hole ? '#C9A27A' : '#F5DEB3';
                         ctx.fillRect(screenX, screenY, window.cellSize, window.cellSize);
                     }
                 }
@@ -1420,6 +1470,7 @@
 
         // Victory
         function victory() {
+            if (!gameActive) return;
             gameActive = false;
             document.getElementById('treasureDisplay').textContent = '1/1';
 
@@ -1440,7 +1491,15 @@
             }
 
             // Message
-            if (isFreePlay) {
+            if (isJob) {
+                JobSite.complete('dig');
+                JobSite.say('The hole is dug! Now the dump truck!');
+                document.getElementById('victoryMessage').textContent = 'The hole is ready for gravel!';
+                document.querySelector('.victory-title').textContent = '🎉 Hole Dug! 🎉';
+                document.querySelectorAll('#victoryScreen .victory-btn').forEach(b => b.style.display = 'none');
+                const content = document.querySelector('.victory-content');
+                if (!content.querySelector('a')) content.appendChild(JobSite.backButton());
+            } else if (isFreePlay) {
                 document.getElementById('victoryMessage').textContent =
                     `Treasure Found in ${digCount} digs! Dig Another?`;
             } else {
@@ -1474,11 +1533,15 @@
             document.getElementById('victoryScreen').classList.remove('active');
             document.getElementById('gameContainer').classList.remove('active');
             document.getElementById('menu').classList.remove('hidden');
-            keys = {};
         }
 
         // Initialize
         init();
+        if (JOB_MODE) {
+            isJob = true;
+            document.getElementById('levelDisplay').textContent = 'Job Site: Dig the Hole';
+            startGame();
+        }
 
         // Menu Logic
         const navToggle = document.getElementById('nav-toggle');
