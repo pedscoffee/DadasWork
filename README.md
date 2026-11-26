@@ -23,7 +23,8 @@ My son always wants to 'help' with Dada's Work and type on the computer. I had t
 | 🎨 **Finish Crew** | Put the shaped windows in ("find the triangle!"), place the flag, cat and flowers with position words (on top, next to, under), then paint the floors |
 | 🚂 **Letter Train** | Fill each train car with the right letter to spell a word, then the train chugs away. The first word is always LOVE ❤️ |
 | 🥕 **Feed the Animals** | Drag each food to the animal who eats it (or just tap the animal). Wrong guesses get a polite "no thank you!" |
-| 🛁 **Bubble Pop** | Bath-time bubbles float up with letters on them. Pop the ones with the letter you hear |
+| 🛁 **Bubble Pop** | Five games in the tub: ABC (big letters), abc (little letters), A → a (big finds little), 1 → 100 (1 to 20, then 30, 40 … 100, remembers where you left off), and 🐱 cat (pick the bubble whose word matches the picture). The right bubbles glow if you need a hint |
+| 🚗 **Car Wash Words** | Each wash arch sprays one letter sound onto the car, then the blower blends them: "sss… uh… nnn… sun!" Pick the picture you made and the car drives off with it |
 | 🚒 **Fire Truck** | Race to the fire and spray it out |
 | 🚗 **Drive & Collect** | Touch-driving game for the littlest players |
 | 🏎️ **Racer** | Tap left or right to change lanes. Grab stars, hit ⚡ to zoom, bonk cones, pass three friendly cars. Always finishes 1st 🏆 |

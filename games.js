@@ -17,6 +17,7 @@ const DADAS_GAMES = [
     { file: 'finish-crew.html', emoji: '🎨', name: 'Finish Crew' },
     { file: 'letter-train.html', emoji: '🚂', name: 'Letter Train' },
     { file: 'feed-animals.html', emoji: '🥕', name: 'Feed the Animals' },
+    { file: 'car-wash.html', emoji: '🚗', name: 'Car Wash Words' },
     { file: 'bubble-pop.html', emoji: '🛁', name: 'Bubble Pop' },
     { file: 'firetruck.html', emoji: '🚒', name: 'Fire Truck' },
     { file: 'drive.html', emoji: '🚗', name: 'Drive & Collect' },

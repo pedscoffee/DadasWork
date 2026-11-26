@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>🚗 Car Wash Words</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+        html, body { width: 100%; height: 100%; overflow: hidden; touch-action: none; position: fixed; background: #8fd3ff;
+            font-family: 'Arial Rounded MT Bold', 'Chalkboard SE', 'Comic Sans MS', sans-serif; }
+        canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+        .screen { position: fixed; inset: 0; z-index: 1500; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 18px; background: rgba(143, 211, 255, .94); text-align: center; padding: 20px; }
+        .screen.hidden { display: none; }
+        .screen h1 { font-size: clamp(38px, 8vw, 76px); color: #fff; text-shadow: 0 4px 0 #1c5d99; }
+        .screen p { font-size: clamp(18px, 3.5vw, 26px); color: #1c5d99; }
+        .big-btn { font: inherit; font-size: clamp(26px, 5vw, 38px); padding: 16px 52px; border-radius: 50px; border: 5px solid #fff;
+            background: linear-gradient(135deg, #ff7eb3, #ff4f9a); color: #fff; cursor: pointer; box-shadow: 0 8px 0 #c2185b; }
+        #speak { position: fixed; top: 12px; right: 12px; z-index: 20; width: 48px; height: 48px; border-radius: 50%; border: 2px solid rgba(255,255,255,.6);
+            background: rgba(0,0,0,.45); color: #fff; font-size: 22px; cursor: pointer; }
+        .rain { position: fixed; top: -60px; font-size: clamp(30px, 6vw, 56px); pointer-events: none; z-index: 1400; animation: fall linear forwards; }
+        @keyframes fall { to { transform: translateY(115vh) rotate(360deg); } }
+        #game-nav { position: fixed; top: 12px; left: 12px; z-index: 2000; }
+        #nav-toggle { background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.6); color: #fff; font-size: 24px; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; }
+        #nav-overlay { position: fixed; inset: 0; background: rgba(10,10,30,.95); z-index: 2001; display: flex; align-items: center; justify-content: center; transition: opacity .3s; }
+        #nav-overlay.hidden { opacity: 0; pointer-events: none; }
+        #nav-close { position: absolute; top: 24px; right: 24px; background: none; border: none; color: #fff; font-size: 40px; cursor: pointer; }
+        .nav-links { display: flex; flex-direction: column; gap: 12px; text-align: center; max-height: 85vh; overflow-y: auto; padding: 10px; }
+        .nav-links a { color: #fff; text-decoration: none; font-size: 22px; padding: 10px 30px; border-radius: 30px; background: rgba(255,255,255,.1); }
+    </style>
+</head>
+<body>
+    <canvas id="c"></canvas>
+    <button id="speak" aria-label="Say it again">🔊</button>
+    <div id="game-nav"><button id="nav-toggle" aria-label="Games">☰</button></div>
+    <div id="nav-overlay" class="hidden">
+        <button id="nav-close" aria-label="Close">✕</button>
+        <div class="nav-links"><!-- filled from games.js --></div>
+    </div>
+    <div id="start" class="screen">
+        <h1>🚗 Car Wash Words 🫧</h1>
+        <p>Tap each wash to spray a sound onto the car.</p>
+        <p>Then blow the sounds together to make a word!</p>
+        <button class="big-btn" id="start-btn">Open the Car Wash!</button>
+    </div>
+
+<script>
+// =============================================================
+// CAR WASH WORDS: blending CVC words
+//  1. A car rolls up. Each wash arch has one letter.
+//     Tap the glowing arch: the car rolls in, gets sprayed, the arch
+//     says the letter's SOUND, and the letter sticks to the car.
+//  2. The blow-dryer arch blends them: "sss... uh... nnn... sun!"
+//  3. "What did we make?" Three pictures; any tap reveals the answer
+//     (the right one gets an extra celebration).
+//  4. The car drives off with its picture and parks in the lot.
+// =============================================================
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const VW = 1000, VH = 600, ROAD = 470;
+const WORDS = [
+    ['cat', '🐱'], ['dog', '🐶'], ['pig', '🐷'], ['hen', '🐔'], ['fox', '🦊'], ['bat', '🦇'], ['bug', '🐛'], ['rat', '🐀'],
+    ['sun', '☀️'], ['hat', '🎩'], ['bus', '🚌'], ['bed', '🛏️'], ['box', '📦'], ['map', '🗺️'], ['pen', '🖊️'], ['web', '🕸️'],
+    ['van', '🚐'], ['jet', '✈️'], ['cup', '☕'], ['bag', '👜'], ['fan', '🪭'], ['pot', '🍲'], ['ant', '🐜']
+];
+// letter -> something the speech voice says like the letter's sound
+const SOUND = {
+    a: 'aah', b: 'buh', c: 'kuh', d: 'duh', e: 'eh', f: 'fff', g: 'guh', h: 'huh', i: 'ih', j: 'juh', k: 'kuh', l: 'lll',
+    m: 'mmm', n: 'nnn', o: 'aw', p: 'puh', r: 'rrr', s: 'sss', t: 'tuh', u: 'uh', v: 'vvv', w: 'wuh', x: 'ks', y: 'yuh', z: 'zzz'
+};
+const VOWELS = 'aeiou';
+const ARCH_X = [300, 470, 640], DRYER_X = 810;
+const ARCH_COLORS = ['#4fb3ff', '#ff6fae', '#7bd389'];
+const CAR_COLORS = ['#e63946', '#ffb703', '#2a9d8f', '#9b5de5', '#ff7f11', '#1e88e5'];
+let W, H, k, ox, oy, t = 0, last = 0;
+
+let word = null, stage = 'menu';   // arrive | wait | moving | spraying | dryer | blend | pick | reveal | leave
+let station = 0;                    // which arch is next (0..2), 3 = dryer
+let car = { x: -200, tx: 120, color: CAR_COLORS[0], letters: [], pic: null, wobble: 0 };
+let choices = [], picked = null, idle = 0, sprayT = 0, blendT = 0, parked = [], washed = 0, stars = 0;
+let drops = [], suds = [], msg = null, queue = [];
+
+// ---------- sound ----------
+let AC = null;
+function tone(f, d = .15, type = 'triangle', v = .18, slideTo, delay = 0) {
+    try {
+        AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+        if (AC.state === 'suspended') AC.resume();
+        const n = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+        o.type = type; o.frequency.setValueAtTime(f, n);
+        if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, n + d);
+        g.gain.setValueAtTime(v, n); g.gain.exponentialRampToValueAtTime(.001, n + d);
+        o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d);
+    } catch (e) { }
+}
+function say(text, rate = .8) {
+    try {
+        if (!('speechSynthesis' in window)) return;
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.rate = rate; u.pitch = 1.15;
+        speechSynthesis.speak(u);
+    } catch (e) { }
+}
+// spray noise (filtered white noise)
+function spraySound(dur = 1) {
+    try {
+        AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+        const n = AC.sampleRate * dur, buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
+        for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+        const src = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+        f.type = 'highpass'; f.frequency.value = 1800; g.gain.value = .12;
+        src.buffer = buf; src.connect(f).connect(g).connect(AC.destination); src.start();
+    } catch (e) { }
+}
+const honk = () => { tone(392, .15, 'square', .12); tone(392, .2, 'square', .12, null, .2); };
+const ding = () => { tone(988, .12); tone(1319, .2, 'triangle', .18, null, .08); };
+const fanfare = () => [523, 659, 784, 1046, 784, 1046].forEach((f, i) => tone(f, .3, 'triangle', .18, null, i * .13));
+
+// ---------- layout ----------
+function resize() {
+    const DPR = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    k = Math.min(W / VW, H / VH);
+    ox = (W - VW * k) / 2; oy = (H - VH * k) / 2;
+    ctx.setTransform(DPR * k, 0, 0, DPR * k, DPR * ox, DPR * oy);
+}
+addEventListener('resize', resize);
+resize();
+const toWorld = (e) => ({ x: (e.clientX - ox) / k, y: (e.clientY - oy) / k });
+
+// ---------- flow ----------
+function newCar() {
+    if (!queue.length) queue = WORDS.slice().sort(() => Math.random() - .5);
+    word = queue.pop();
+    station = 0; picked = null; choices = [];
+    car = { x: -260, tx: 120, color: CAR_COLORS[washed % CAR_COLORS.length], letters: [], pic: null, wobble: 0, dirt: 1 };
+    stage = 'arrive'; idle = 0;
+    honk();
+}
+function prompt() {
+    if (stage === 'wait' && station < 3) return `Tap the ${word[0][station].toUpperCase()} wash!`;
+    if (stage === 'wait' && station === 3) return 'Tap the blower to blow the sounds together!';
+    if (stage === 'pick') return 'What did we make? Tap the picture!';
+    return '';
+}
+function goNext() {
+    // one tap = one step through the car wash
+    if (stage !== 'wait') return;
+    idle = 0;
+    car.tx = station < 3 ? ARCH_X[station] : DRYER_X;
+    stage = 'moving';
+    tone(300, .08, 'square', .06);
+}
+function arrived() {
+    if (station < 3) {
+        stage = 'spraying'; sprayT = 1.3;
+        const L = word[0][station];
+        spraySound(1.1);
+        setTimeout(() => say(SOUND[L], .7), 250);
+        car.letters.push({ ch: L, x: 0, pop: 0 });
+        car.dirt = Math.max(0, car.dirt - .34);
+    } else {
+        stage = 'blend'; blendT = 0;
+        const [w] = word;
+        const sounds = w.split('').map(c => SOUND[c]);
+        // slow, then faster, then the word
+        say(`${sounds.join('... ')}... ${sounds.join(' ')}... ${w}!`, .7);
+        tone(200, 1.2, 'sawtooth', .04, 500);
+    }
+}
+function startPick() {
+    stage = 'pick'; idle = 0;
+    const others = WORDS.filter(w => w !== word).sort(() => Math.random() - .5).slice(0, 2);
+    choices = [word, ...others].sort(() => Math.random() - .5).map((w, i) => ({ w, x: 330 + i * 170, y: 160, r: 66 }));
+    say(prompt());
+}
+function pick(c) {
+    picked = c; stage = 'reveal';
+    const right = c.w === word;
+    car.pic = word[1];
+    if (right) {
+        stars++; fanfare();
+        say(`Yes! ${word[0]}! You read it!`);
+        rain(['⭐', word[1], '🫧', '✨'], 26);
+        msg = { text: `⭐ ${word[0]}! ⭐`, life: 2.6 };
+    } else {
+        ding();
+        say(`That's a ${c.w[0]}! We made... ${word[0]}!`);
+        msg = { text: `${word[0]}!`, life: 2.6 };
+    }
+    setTimeout(() => { stage = 'leave'; car.tx = 1250; honk(); }, 2600);
+}
+function rain(emojis, n) {
+    for (let i = 0; i < n; i++) setTimeout(() => {
+        const e = document.createElement('div');
+        e.className = 'rain'; e.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        e.style.left = Math.random() * 95 + 'vw'; e.style.animationDuration = (2 + Math.random() * 2) + 's';
+        document.body.appendChild(e); setTimeout(() => e.remove(), 4200);
+    }, i * 60);
+}
+
+// ---------- input ----------
+canvas.addEventListener('pointerdown', (e) => {
+    if (stage === 'menu') return;
+    const p = toWorld(e);
+    if (stage === 'pick') {
+        const c = choices.find(c => Math.hypot(p.x - c.x, p.y - c.y) < c.r + 20);
+        if (c) pick(c); else say(prompt());
+        return;
+    }
+    // tapping the car honks; tapping anywhere else moves to the next wash
+    if (p.x > car.x - 100 && p.x < car.x + 100 && p.y > ROAD - 110 && p.y < ROAD + 10 && stage !== 'wait') { honk(); return; }
+    goNext();
+});
+document.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') goNext(); });
+document.getElementById('start-btn').addEventListener('click', () => {
+    document.getElementById('start').classList.add('hidden');
+    tone(500, .1);
+    newCar();
+});
+document.getElementById('speak').addEventListener('click', () => {
+    if (stage === 'wait' && station > 0 && station <= 3) say(car.letters.map(l => SOUND[l.ch]).join('... '));
+    else say(prompt());
+});
+
+// ---------- update ----------
+function update(dt) {
+    idle += dt;
+    car.wobble = Math.max(0, car.wobble - dt);
+    const speed = stage === 'leave' ? 520 : 320;
+    const d = car.tx - car.x;
+    if (Math.abs(d) > 2) car.x += Math.sign(d) * Math.min(Math.abs(d), speed * dt);
+    else if (stage === 'arrive') { stage = 'wait'; say(prompt()); }
+    else if (stage === 'moving') arrived();
+
+    if (stage === 'spraying') {
+        sprayT -= dt;
+        const ax = car.x;
+        for (let i = 0; i < 4; i++) drops.push({ x: ax - 80 + Math.random() * 160, y: 250, vx: (Math.random() - .5) * 40, vy: 200 + Math.random() * 150, life: .9, c: ARCH_COLORS[station] });
+        if (Math.random() < .5) suds.push({ x: ax - 90 + Math.random() * 180, y: ROAD - 40 - Math.random() * 70, r: 6 + Math.random() * 12, life: 2 });
+        if (sprayT <= 0) {
+            station++;
+            stage = 'wait'; idle = 0;
+            setTimeout(() => { if (stage === 'wait') say(prompt()); }, 900);
+        }
+    }
+    if (stage === 'blend') {
+        blendT += dt / 2.6;
+        // gusts
+        if (Math.random() < .6) drops.push({ x: DRYER_X + (Math.random() - .5) * 140, y: 240, vx: (Math.random() - .5) * 300, vy: 120, life: .6, c: 'rgba(255,255,255,.8)' });
+        if (blendT >= 1) { blendT = 1; startPick(); }
+    }
+    if (stage === 'leave' && car.x > 1180) {
+        parked.push({ pic: word[1], color: car.color });
+        if (parked.length > 8) parked.shift();
+        washed++;
+        newCar();
+    }
+    car.letters.forEach(l => l.pop = Math.min(1, l.pop + dt * 3));
+    drops.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }); drops = drops.filter(p => p.life > 0);
+    suds.forEach(s => { s.life -= dt * .5; s.y -= 6 * dt; }); suds = suds.filter(s => s.life > 0);
+    if (msg) { msg.life -= dt; if (msg.life <= 0) msg = null; }
+    if (idle > 9 && (stage === 'wait' || stage === 'pick')) { idle = 0; say(prompt()); }
+}
+
+// ---------- draw ----------
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function emoji(e, x, y, size) { ctx.font = `${size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(e, x, y); }
+function letterText(ch, x, y, size, fill, stroke) {
+    ctx.font = `bold ${size}px 'Arial Rounded MT Bold', Arial, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = size * .14; ctx.strokeStyle = stroke; ctx.strokeText(ch, x, y);
+    ctx.fillStyle = fill; ctx.fillText(ch, x, y);
+}
+
+function drawScene() {
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    g.addColorStop(0, '#6ec6ff'); g.addColorStop(1, '#d7f0ff');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+    ctx.fillStyle = '#9ad46b'; ctx.fillRect(-2000, ROAD - 40, VW + 4000, 40);
+    ctx.fillStyle = '#5c5c5c'; ctx.fillRect(-2000, ROAD, VW + 4000, 2000);
+    ctx.fillStyle = '#fff';
+    for (let x = -60; x < VW + 60; x += 90) ctx.fillRect(x + ((t * 0) % 90), ROAD + 50, 50, 8);
+    // building behind the arches
+    ctx.fillStyle = '#fff3e0'; rr(220, 150, 720, ROAD - 150, 16); ctx.fill();
+    ctx.fillStyle = '#ff4f9a'; rr(330, 14, 340, 58, 20); ctx.fill();
+    letterText('CAR WASH', 500, 44, 36, '#fff', '#c2185b');
+    emoji('🫧', 310, 40, 36); emoji('🫧', 690, 40, 36);
+}
+
+function drawArch(i, x, label, color, active) {
+    const top = 210, w = 150;
+    const bob = active ? Math.sin(t * 6) * 4 : 0;
+    ctx.fillStyle = color;
+    rr(x - w / 2, top, 20, ROAD - top, 6); ctx.fill();
+    rr(x + w / 2 - 20, top, 20, ROAD - top, 6); ctx.fill();
+    rr(x - w / 2, top - 10, w, 30, 10); ctx.fill();
+    // spinning brushes
+    if (i < 3) {
+        ctx.fillStyle = 'rgba(255,255,255,.6)';
+        for (let k2 = 0; k2 < 6; k2++) {
+            const yy = top + 30 + ((k2 * 40 + (stage === 'spraying' && station === i ? t * 300 : 0)) % 230);
+            ctx.fillRect(x - w / 2 + 20, yy, 10, 18); ctx.fillRect(x + w / 2 - 30, yy, 10, 18);
+        }
+    }
+    // sign with the letter
+    const sy = top - 70 + bob;
+    ctx.fillStyle = active ? '#fffbe6' : '#fff';
+    rr(x - 48, sy - 42, 96, 84, 18); ctx.fill();
+    ctx.strokeStyle = active ? '#ffb300' : color; ctx.lineWidth = active ? 7 : 5; ctx.stroke();
+    if (label.length === 1) letterText(label, x, sy + 2, 66, VOWELS.includes(label) ? '#e63946' : '#1c5d99', '#fff');
+    else emoji(label, x, sy + 2, 52);
+}
+
+function drawCar() {
+    const x = car.x, y = ROAD;
+    const bounce = Math.abs(car.tx - car.x) > 2 ? Math.sin(t * 20) * 2 : 0;
+    ctx.save(); ctx.translate(x, y + bounce);
+    // body
+    ctx.fillStyle = car.color;
+    rr(-110, -80, 220, 52, 18); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-60, -80); ctx.lineTo(-35, -122); ctx.lineTo(45, -122); ctx.lineTo(75, -80); ctx.fill();
+    ctx.fillStyle = '#bde0fe';
+    ctx.beginPath(); ctx.moveTo(-48, -84); ctx.lineTo(-30, -114); ctx.lineTo(2, -114); ctx.lineTo(2, -84); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(10, -84); ctx.lineTo(10, -114); ctx.lineTo(40, -114); ctx.lineTo(62, -84); ctx.fill();
+    // mud spots that wash off
+    if (car.dirt > 0) {
+        ctx.fillStyle = `rgba(121,85,72,${.75 * car.dirt})`;
+        [[-80, -55, 14], [-20, -42, 10], [40, -60, 16], [85, -45, 10], [-50, -95, 8]].forEach(([a, b, r]) => { ctx.beginPath(); ctx.arc(a, b, r, 0, 7); ctx.fill(); });
+    } else {
+        ctx.fillStyle = 'rgba(255,255,255,.9)';
+        emoji('✨', 95, -95 + Math.sin(t * 5) * 3, 22);
+    }
+    ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(104, -60, 8, 0, 7); ctx.fill();
+    // wheels
+    [-65, 65].forEach(wx => {
+        ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(wx, -26, 25, 0, 7); ctx.fill();
+        ctx.fillStyle = '#ccc'; ctx.beginPath(); ctx.arc(wx, -26, 10, 0, 7); ctx.fill();
+    });
+    // the letters stuck on the side (they slide together in the dryer)
+    const n = car.letters.length;
+    const spread = stage === 'blend' ? 62 - 14 * Math.min(1, blendT * 1.6) : (['pick', 'reveal', 'leave'].includes(stage) ? 48 : 62);
+    car.letters.forEach((l, i) => {
+        const lx = (i - 1) * spread, ly = -54;
+        const sc = .4 + .6 * l.pop;
+        ctx.fillStyle = '#fff'; rr(lx - 26 * sc, ly - 26 * sc, 52 * sc, 52 * sc, 10); ctx.fill();
+        letterText(l.ch, lx, ly + 2, 44 * sc, VOWELS.includes(l.ch) ? '#e63946' : '#1c5d99', '#fff');
+    });
+    // the picture rides on the roof after the reveal
+    if (car.pic) emoji(car.pic, 5, -165 + Math.sin(t * 4) * 4, 70);
+    ctx.restore();
+}
+
+function draw() {
+    drawScene();
+    // parking lot of washed cars (top-left)
+    parked.forEach((p, i) => {
+        const x = 60 + i * 70, y = 575;
+        ctx.fillStyle = p.color; rr(x - 22, y, 44, 22, 8); ctx.fill();
+        emoji(p.pic, x, y - 10, 34);
+    });
+    for (let i = 0; i < 3; i++) {
+        const L = word ? word[0][i] : 'abc'[i];
+        drawArch(i, ARCH_X[i], L, ARCH_COLORS[i], stage === 'wait' && station === i);
+    }
+    drawArch(3, DRYER_X, '💨', '#ffb703', stage === 'wait' && station === 3);
+    suds.forEach(s => { ctx.globalAlpha = Math.min(1, s.life); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill(); });
+    ctx.globalAlpha = 1;
+    drawCar();
+    drops.forEach(p => { ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.c; ctx.beginPath(); ctx.ellipse(p.x, p.y, 3, 7, 0, 0, 7); ctx.fill(); });
+    ctx.globalAlpha = 1;
+    // tap hint
+    if (stage === 'wait' && idle > 3) {
+        const hx = station < 3 ? ARCH_X[station] : DRYER_X;
+        emoji('👆', hx + 30, 200 + Math.sin(t * 6) * 8, 50);
+    }
+    // picture choices
+    if (stage === 'pick' || stage === 'reveal') {
+        ctx.fillStyle = 'rgba(255,255,255,.85)'; rr(220, 70, 560, 180, 30); ctx.fill();
+        choices.forEach(c => {
+            const right = c.w === word;
+            const glow = (stage === 'pick' && idle > 6 && right) || (stage === 'reveal' && right);
+            const dim = stage === 'reveal' && !right;
+            ctx.globalAlpha = dim ? .35 : 1;
+            ctx.fillStyle = glow ? '#fff3b0' : '#fff'; ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, 7); ctx.fill();
+            ctx.strokeStyle = glow ? '#ffb300' : '#4fb3ff'; ctx.lineWidth = glow ? 8 : 5; ctx.stroke();
+            emoji(c.w[1], c.x, c.y + (glow ? Math.sin(t * 8) * 4 : 0), 80);
+            ctx.globalAlpha = 1;
+        });
+    }
+    if (msg) {
+        ctx.globalAlpha = Math.min(1, msg.life);
+        letterText(msg.text, 500, 300, 64, '#ffd23f', '#1c5d99');
+        ctx.globalAlpha = 1;
+    }
+    // stars
+    ctx.fillStyle = '#1c5d99'; ctx.font = 'bold 30px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(`⭐ ${stars}`, 930, 40);
+}
+
+function loop(ts) {
+    const dt = last ? Math.min((ts - last) / 1000, .05) : .016;
+    last = ts; t += dt;
+    if (stage !== 'menu') update(dt);
+    draw();
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
+document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
+</script>
+<script src="games.js"></script>
+</body>
+</html>
