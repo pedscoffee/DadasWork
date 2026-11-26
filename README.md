@@ -35,6 +35,9 @@ My son always wants to 'help' with Dada's Work and type on the computer. I had t
 | 🎅 **Santa Delivery** | Fly over the snowy town and drop presents on every house |
 | ❄️ **Snowball Throw** | Knock down all the snowmen |
 | 🐕 **Fetch with Sully** | Tap where to throw and Sully (a curly white poodle-retriever) runs, leaps and brings it back. Little challenges: near/far tree, numbered flags, "which starts with B, like bark?" Every 10 fetches Sully gets a treat and the park changes |
+| 🎣 **Fishing for 10** | Catch a fish, then catch the one that fills the bucket's ten frame: 7 and 3 make 10! Too many dots spill out in red. Five 10s finds the treasure |
+| 🛻 **Number Line Jumps** | "3 + 2": guess where the truck will land, then tap to hop along the number line and find out. Take-away rounds hop backward |
+| ♻️ **Sort It!** | Items ride the conveyor belt; tap the right bin. Rounds switch between trash/recycle/compost, colors, and shapes |
 
 ### Magic Typing backgrounds
 Waves, Stars, Bubbles, Fire, Spiral, Pipes, Matrix, DVD, Fireworks, Worms, Ocean, Garden, Rockets, Music, Weather, Kaleidoscope, Swarm. Each one gets more lively the more your kid types.

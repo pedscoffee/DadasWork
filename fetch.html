@@ -46,6 +46,8 @@
         <button class="big-btn" id="start-btn">Play Fetch!</button>
     </div>
 
+<script src="voice.js"></script>
+<script src="scenery.js"></script>
 <script>
 // =============================================================
 // FETCH WITH SULLY
@@ -76,15 +78,7 @@ function tone(f, d = .15, type = 'triangle', v = .18, slideTo, delay = 0) {
         o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d);
     } catch (e) { }
 }
-function say(text) {
-    try {
-        if (!('speechSynthesis' in window)) return;
-        speechSynthesis.cancel();
-        const m = new SpeechSynthesisUtterance(text);
-        m.rate = .85; m.pitch = 1.15;
-        speechSynthesis.speak(m);
-    } catch (e) { }
-}
+function say(text, rate = .85, now = false) { Voice.say(text, { rate, now }); }
 const bark = (delay = 0) => { tone(420, .09, 'sawtooth', .16, 260, delay); tone(300, .12, 'square', .07, 180, delay + .02); };
 const whoosh = () => tone(300, .35, 'sine', .08, 900);
 const boing = () => tone(500, .18, 'sine', .14, 250);
@@ -375,17 +369,23 @@ function drawPark() {
     const g = ctx.createLinearGradient(0, 0, 0, GY);
     g.addColorStop(0, P.sky[0]); g.addColorStop(1, P.sky[1]);
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, GY);
-    ctx.fillStyle = P.sun; ctx.beginPath(); ctx.arc(W * .82, H * .16, 38 * u, 0, 7); ctx.fill();
+    Scenery.sun(ctx, W * .82, H * .16, 38 * u, t, P.sun);
+    Scenery.clouds(ctx, t, { x0: 0, x1: W, y0: H * .1, y1: H * .35, n: 4, size: 30 * u, seed: 101 + park, color: P.name === 'sunset' ? 'rgba(255,222,230,.9)' : undefined });
+    if (P.name !== 'snowy') Scenery.birds(ctx, t, { x0: 0, x1: W, y: H * .3, n: 3, size: 9 * u, seed: 102 });
+    Scenery.hills(ctx, 0, W, GY - 30 * u, 70 * u, P.name === 'snowy' ? '#e8f1fa' : '#b9dc95', 103, 2);
     // far hills
     ctx.fillStyle = P.grass[1];
     ctx.beginPath(); ctx.moveTo(0, GY);
     for (let x = 0; x <= W; x += 16) ctx.lineTo(x, GY - 60 * u - Math.sin(x / W * 5 + 1) * 20 * u);
     ctx.lineTo(W, GY); ctx.fill();
+    Scenery.trees(ctx, [W * .3, W * .48, W * .9, W * .62], GY - 50 * u, 90 * u, { kind: 'mixed', snowy: P.name === 'snowy', seed: 104 });
     // fence
     ctx.fillStyle = P.name === 'snowy' ? '#c9b8a6' : '#e8d5b7';
     for (let x = 10; x < W; x += 34 * u) ctx.fillRect(x, GY - 52 * u, 10 * u, 52 * u);
     ctx.fillRect(0, GY - 40 * u, W, 7 * u); ctx.fillRect(0, GY - 22 * u, W, 7 * u);
     ctx.fillStyle = P.grass[0]; ctx.fillRect(0, GY, W, H - GY);
+    if (P.name !== 'snowy') { Scenery.tufts(ctx, 0, W, GY + 14 * u, 30, 10 * u, 'rgba(51,105,30,.5)', 105); Scenery.flowers(ctx, 0, W, GY + 30 * u, H - 20, 14, 6 * u, 106); }
+    else { ctx.fillStyle = 'rgba(255,255,255,.9)'; const r = Scenery.rng(107); for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.ellipse(r() * W, GY + 20 * u + r() * (H - GY - 40), 40 * u, 10 * u, 0, 0, 7); ctx.fill(); } }
     if (P.name === 'snowy') {
         ctx.fillStyle = 'rgba(255,255,255,.85)';
         for (let i = 0; i < 40; i++) { const sx = (i * 97 + t * 30) % W, sy = (i * 53 + t * 40) % GY; ctx.beginPath(); ctx.arc(sx, sy, 2.5 * u, 0, 7); ctx.fill(); }

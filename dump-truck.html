@@ -62,6 +62,7 @@
         <button class="big-btn" id="start-btn">Let's Build!</button>
     </div>
 
+    <script src="voice.js"></script>
     <script src="jobsite.js"></script>
     <script>
         // ============================================
@@ -111,15 +112,7 @@
                 o.connect(g).connect(AC.destination); o.start(now); o.stop(now + dur);
             } catch (e) { }
         }
-        function say(text) {
-            try {
-                if (!('speechSynthesis' in window)) return;
-                speechSynthesis.cancel();
-                const u = new SpeechSynthesisUtterance(text);
-                u.rate = 0.85; u.pitch = 1.15;
-                speechSynthesis.speak(u);
-            } catch (e) { }
-        }
+        function say(text, rate = .85, now = false) { Voice.say(text, { rate, now }); }
         const honk = () => { tone(330, 0.35, 'sawtooth', 0.12); tone(415, 0.35, 'sawtooth', 0.1); };
         const clunk = () => tone(120 + Math.random() * 60, 0.09, 'square', 0.05, 70);
 
@@ -242,7 +235,7 @@
                     if (r.x > bl && r.x < br && r.y >= landY && truck.rocks < ROCKS_PER_LOAD) {
                         r.done = true; truck.rocks++; truck.colors.push(r.color); clunk();
                         if (truck.rocks === ROCKS_PER_LOAD) { say('Ten! Full! Back it up to the hole!'); }
-                        else say(NUMBER_WORDS[truck.rocks] + '!');
+                        else say(NUMBER_WORDS[truck.rocks] + '!', .85, true);
                     } else if (r.y > G - r.r) { r.done = true; puff(r.x, G); }
                 } else {
                     const pl = pitC - pitW / 2, pr = pitC + pitW / 2;
@@ -469,7 +462,7 @@
 
         // Ten frame above the truck: one dot per rock
         function drawTenFrame() {
-            if (dumping) return;
+            if (dumping || (truck.rocks === 0 && !atLoader())) return;   // stays out of the way of the hint arrow
             const cell = 26 * s, gap = 4 * s;
             const w = 5 * cell + 6 * gap, h = 2 * cell + 3 * gap;
             const bx = bedToWorld(-BED_LEN() / 2, 0).x - w / 2;

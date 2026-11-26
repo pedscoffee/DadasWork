@@ -51,6 +51,8 @@
         <div id="end-btns"></div>
     </div>
 
+<script src="voice.js"></script>
+<script src="scenery.js"></script>
 <script src="jobsite.js"></script>
 <script>
 // =============================================================
@@ -94,7 +96,7 @@ function tone(f, d = .15, type = 'triangle', v = .18, slideTo, delay = 0) {
         o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d);
     } catch (e) { }
 }
-const say = (s) => JobSite.say(s);
+const say = (s, now) => JobSite.say(s, now);
 const thud = () => { tone(110, .25, 'sine', .3, 60); tone(80, .2, 'square', .05); };
 const clank = () => tone(900, .06, 'square', .06);
 const ding = () => { tone(988, .12); tone(1319, .2, 'triangle', .18, null, .08); };
@@ -183,7 +185,7 @@ function countFloors() {
         i++;
         litFloor = i;
         tone(400 + i * 80, .2);
-        say(NUM[i] || String(i));
+        say(NUM[i] || String(i), true);
         if (i < floors.length) setTimeout(step, 750);
         else setTimeout(() => { litFloor = 0; finish(); }, 1000);
     };
@@ -325,8 +327,18 @@ function draw() {
     const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
     g.addColorStop(0, '#6ec6ff'); g.addColorStop(1, '#d7f0ff');
     ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+    const vx0 = -ox / k - 20, vx1 = (W - ox) / k + 20;
+    Scenery.sun(ctx, 720, 130, 30, t);
+    Scenery.clouds(ctx, t, { x0: vx0, x1: vx1, y0: 130, y1: 260, n: 5, size: 26, seed: 51, speed: 6 });
+    Scenery.birds(ctx, t, { x0: vx0, x1: vx1, y: 190, n: 3, size: 9, seed: 52 });
+    Scenery.skyline(ctx, vx0, vx1, GROUND, 230, 'rgba(140,165,200,.5)', 53);
+    Scenery.hills(ctx, vx0, vx1, GROUND, 45, '#b5dd8b', 54, 2);
     ctx.fillStyle = '#c8a26b'; ctx.fillRect(-2000, GROUND, VW + 4000, 2000);
-    ctx.fillStyle = '#b58d55'; ctx.fillRect(-500, GROUND, VW + 1000, 8);
+    ctx.fillStyle = '#b58d55'; ctx.fillRect(-2000, GROUND, VW + 4000, 8);
+    const pr = Scenery.rng(55);
+    ctx.fillStyle = 'rgba(120,90,50,.35)';
+    for (let i = 0; i < 30; i++) { ctx.beginPath(); ctx.arc(vx0 + pr() * (vx1 - vx0), GROUND + 16 + pr() * 60, 2 + pr() * 4, 0, 7); ctx.fill(); }
+    ctx.fillStyle = '#e07a00'; for (let i = 0; i < 3; i++) ctx.fillRect(760 + i * 6, GROUND - 12 - i * 10, 90, 9);
 
     // the plan (pattern card)
     ctx.fillStyle = '#fff'; rr(20, 70, 70 + plan.length * 0, 40 + plan.length * 34, 12); ctx.fill();
@@ -442,6 +454,7 @@ requestAnimationFrame(loop);
 document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
 document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
 </script>
+<script src="landscape.js"></script>
 <script src="games.js"></script>
 </body>
 </html>

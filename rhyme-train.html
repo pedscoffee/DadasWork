@@ -46,6 +46,8 @@
         <button class="big-btn" id="start-btn">All Aboard!</button>
     </div>
 
+<script src="voice.js"></script>
+<script src="scenery.js"></script>
 <script>
 // =============================================================
 // RHYME TRAIN
@@ -95,14 +97,7 @@ function tone(f, d = .15, type = 'triangle', v = .18, slideTo, delay = 0) {
         o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d);
     } catch (e) { }
 }
-function say(text, rate = .85) {
-    try {
-        if (!('speechSynthesis' in window)) return;
-        speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text); u.rate = rate; u.pitch = 1.15;
-        speechSynthesis.speak(u);
-    } catch (e) { }
-}
+function say(text, rate = .85, now = false) { Voice.say(text, { rate, now }); }
 const whistle = () => { tone(880, .35, 'sine', .14); tone(1175, .35, 'sine', .1); tone(880, .4, 'sine', .14, null, .45); tone(1175, .4, 'sine', .1, null, .45); };
 const clack = () => { tone(180, .06, 'square', .12); tone(140, .08, 'square', .1, null, .07); };
 const boing = () => tone(520, .4, 'sine', .22, 140);
@@ -304,13 +299,21 @@ function draw() {
     const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
     g.addColorStop(0, '#6ec6ff'); g.addColorStop(1, '#d7f0ff');
     ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+    const vx0 = -ox / k - 20, vx1 = (W - ox) / k + 20;
+    Scenery.sun(ctx, 130, 60, 28, t);
+    Scenery.clouds(ctx, t, { x0: vx0, x1: vx1, y0: 30, y1: 110, n: 5, size: 22, seed: 71 });
+    Scenery.birds(ctx, t, { x0: vx0, x1: vx1, y: 70, n: 3, size: 8, seed: 72 });
+    Scenery.mountains(ctx, vx0, vx1, SIDING - 20, 120, '#a9c3e0', 73, true);
+    Scenery.hills(ctx, vx0, vx1, SIDING + 22, 70, '#9ad46b', 74, 3);
+    Scenery.trees(ctx, [-60, 90, 880, 990, 1100], SIDING - 30, 70, { kind: 'pine', seed: 75 });
     ctx.fillStyle = '#8bc34a'; ctx.fillRect(-2000, SIDING + 20, VW + 4000, 2000);
+    Scenery.flowers(ctx, vx0, vx1, SIDING + 60, TRACK - 140, 14, 6, 76);
+    Scenery.tufts(ctx, vx0, vx1, SIDING + 40, 24, 10, 'rgba(51,105,30,.5)', 77);
     ctx.fillStyle = '#7cb342'; ctx.fillRect(-2000, TRACK + 20, VW + 4000, 2000);
-    // hills
-    ctx.fillStyle = '#9ad46b';
-    ctx.beginPath(); ctx.moveTo(-500, SIDING + 22);
-    for (let x = -500; x <= VW + 500; x += 20) ctx.lineTo(x, SIDING - 30 - Math.sin(x / 160) * 25);
-    ctx.lineTo(VW + 500, SIDING + 22); ctx.fill();
+    Scenery.tufts(ctx, vx0, vx1, TRACK + 40, 24, 10, 'rgba(51,105,30,.5)', 78);
+    // little station sign + lamp post
+    ctx.fillStyle = '#6d4c41'; ctx.fillRect(930, TRACK - 120, 8, 120);
+    ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(934, TRACK - 126, 10, 0, 7); ctx.fill();
     rails(SIDING); rails(TRACK);
     if (!fam) return;
 
@@ -343,6 +346,7 @@ requestAnimationFrame(loop);
 document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
 document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
 </script>
+<script src="landscape.js"></script>
 <script src="games.js"></script>
 </body>
 </html>

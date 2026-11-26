@@ -422,6 +422,16 @@
             }
         }
 
+        /* phone held sideways: ornaments in a side panel so the tree gets the screen */
+        @media (orientation: landscape) and (max-height: 600px) {
+            #game-container { flex-direction: row !important; }
+            #decoration-panel { width: 280px !important; height: 100% !important; overflow-y: auto; border-top: none !important;
+                border-left: 4px solid #FFD700; padding: 10px calc(10px + env(safe-area-inset-right)) 10px 10px !important; gap: 8px !important; }
+            #decoration-options { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 6px !important; }
+            .decoration-btn { width: 100% !important; height: auto !important; aspect-ratio: 1; font-size: 26px !important; }
+            #instruction { font-size: 13px !important; }
+            #tree-area { padding-top: 10px !important; }
+        }
         @media (max-width: 768px) {
             .screen h1 {
                 font-size: 36px;

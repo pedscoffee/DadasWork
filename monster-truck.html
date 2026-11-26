@@ -46,6 +46,8 @@
         <button class="big-btn" id="start-btn">Start Your Engine!</button>
     </div>
 
+<script src="voice.js"></script>
+<script src="scenery.js"></script>
 <script>
 // =============================================================
 // MONSTER TRUCK JUMPS: syllables (clapping out words)
@@ -94,14 +96,7 @@ function tone(f, d = .15, type = 'triangle', v = .18, slideTo, delay = 0) {
         o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d);
     } catch (e) { }
 }
-function say(text, rate = .85) {
-    try {
-        if (!('speechSynthesis' in window)) return;
-        speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text); u.rate = rate; u.pitch = 1.1;
-        speechSynthesis.speak(u);
-    } catch (e) { }
-}
+function say(text, rate = .85, now = false) { Voice.say(text, { rate, now }); }
 function crunch() {
     try {
         AC = AC || new (window.AudioContext || window.webkitAudioContext)();
@@ -154,7 +149,7 @@ function jump() {
     tone(160, .2, 'sawtooth', .08, 300);
     if (stage === 'jump' && jumps < w[2].length) {
         jumps++;
-        say(w[3][jumps - 1], .9);
+        say(w[3][jumps - 1], .9, true);
         if (jumps === w[2].length) setTimeout(() => {
             if (stage !== 'jump') return;
             stage = 'ask'; idle = 0;
@@ -288,11 +283,31 @@ function draw() {
     const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
     g.addColorStop(0, '#ff9e6d'); g.addColorStop(1, '#ffe0a8');
     ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+    const vx0 = -ox / k - 20, vx1 = (W - ox) / k + 20;
     const sx = shake ? (Math.random() - .5) * 10 * shake : 0;
     ctx.save(); ctx.translate(sx, 0);
-    // stadium stands + flags
-    ctx.fillStyle = '#5c4033'; ctx.fillRect(-2000, 300, VW + 4000, 60);
-    for (let x = -100; x < VW + 100; x += 40) { ctx.fillStyle = ['#e63946', '#ffb703', '#1e88e5', '#2a9d8f'][Math.abs(x / 40) % 4 | 0]; ctx.beginPath(); ctx.arc(x, 300 + Math.sin(t * 3 + x) * 3, 10, 0, 7); ctx.fill(); }
+    Scenery.sun(ctx, 860, 250, 40, t, '#ff7b39');
+    Scenery.clouds(ctx, t, { x0: vx0, x1: vx1, y0: 30, y1: 200, n: 5, size: 24, seed: 91, color: 'rgba(255,214,222,.85)' });
+    // stadium light towers
+    [40, 960].forEach(lx => {
+        ctx.fillStyle = '#4e342e'; ctx.fillRect(lx - 5, 110, 10, 200);
+        ctx.fillStyle = '#5d4037'; ctx.fillRect(lx - 34, 92, 68, 26);
+        for (let i = 0; i < 3; i++) { ctx.fillStyle = '#fff59d'; ctx.beginPath(); ctx.arc(lx - 22 + i * 22, 105, 8, 0, 7); ctx.fill(); }
+        const beam = ctx.createLinearGradient(lx, 110, lx, 330); beam.addColorStop(0, 'rgba(255,249,196,.35)'); beam.addColorStop(1, 'rgba(255,249,196,0)');
+        ctx.fillStyle = beam; ctx.beginPath(); ctx.moveTo(lx - 30, 110); ctx.lineTo(lx + 30, 110); ctx.lineTo(lx + (lx < 500 ? 220 : -80), 330); ctx.lineTo(lx + (lx < 500 ? 80 : -220), 330); ctx.fill();
+    });
+    // stadium stands with a cheering crowd + flags
+    ctx.fillStyle = '#5c4033'; ctx.fillRect(-2000, 250, VW + 4000, 110);
+    ctx.fillStyle = '#4e342e'; for (let r = 0; r < 3; r++) ctx.fillRect(-2000, 266 + r * 30, VW + 4000, 4);
+    const cr = Scenery.rng(92);
+    for (let r = 0; r < 3; r++) for (let x = vx0; x < vx1; x += 22) {
+        const hop = (Math.sin(t * 6 + x * .3 + r) > .6) ? 4 : 0;
+        ctx.fillStyle = ['#ffcc80', '#8d6e63', '#ffe0b2', '#a1887f'][Math.floor(cr() * 4)];
+        ctx.beginPath(); ctx.arc(x + r * 7, 258 + r * 30 - hop, 6, 0, 7); ctx.fill();
+        ctx.fillStyle = ['#e63946', '#1e88e5', '#ffb703', '#2a9d8f', '#9b5de5'][Math.floor(cr() * 5)];
+        ctx.fillRect(x + r * 7 - 6, 264 + r * 30 - hop, 12, 9);
+    }
+    for (let x = -100; x < VW + 100; x += 40) { ctx.fillStyle = ['#e63946', '#ffb703', '#1e88e5', '#2a9d8f'][Math.abs(x / 40) % 4 | 0]; ctx.beginPath(); ctx.arc(x, 352 + Math.sin(t * 3 + x) * 3, 8, 0, 7); ctx.fill(); }
     ctx.fillStyle = '#a0522d'; ctx.fillRect(-2000, GROUND, VW + 4000, 2000);
     ctx.fillStyle = '#c47a3d'; ctx.fillRect(-2000, 360, VW + 4000, GROUND - 360);
     // ramp at the start
@@ -347,6 +362,7 @@ requestAnimationFrame(loop);
 document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
 document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
 </script>
+<script src="landscape.js"></script>
 <script src="games.js"></script>
 </body>
 </html>

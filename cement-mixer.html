@@ -56,6 +56,8 @@
         <div id="end-btns"></div>
     </div>
 
+<script src="voice.js"></script>
+<script src="scenery.js"></script>
 <script src="jobsite.js"></script>
 <script>
 // =============================================================
@@ -103,7 +105,7 @@ function tone(f, d = .15, type = 'triangle', v = .18, slideTo, delay = 0) {
         o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d);
     } catch (e) { }
 }
-const say = (txt) => JobSite.say(txt);
+const say = (txt, now) => JobSite.say(txt, now);
 const sloshSound = () => { tone(160, .35, 'sawtooth', .05, 90); tone(240, .3, 'sine', .08, 120, .05); };
 const plop = () => tone(500, .2, 'sine', .2, 150);
 const ding = () => { tone(988, .12); tone(1319, .2, 'triangle', .18, null, .08); };
@@ -252,7 +254,7 @@ function spinDrum() {
     sloshSound();
     if (ingredients.every(g => g.inDrum)) {
         spins++;
-        say(spins >= SPINS_NEEDED ? 'Ten! All mixed!' : NUM[spins] + '!');
+        say(spins >= SPINS_NEEDED ? 'Ten! All mixed!' : NUM[spins] + '!', true);
         if (spins >= SPINS_NEEDED) setTimeout(startPour, 1400);
     } else {
         // spinning is still fun, but we need everything in first
@@ -347,9 +349,20 @@ function drawSideScene() {
     const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
     g.addColorStop(0, '#6ec6ff'); g.addColorStop(1, '#d7f0ff');
     ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+    const vx0 = -ox / k - 20, vx1 = (W - ox) / k + 20;
+    Scenery.sun(ctx, 80, 80, 32, t);
+    Scenery.clouds(ctx, t, { x0: vx0, x1: vx1, y0: 40, y1: 150, n: 4, size: 26, seed: 21 });
+    Scenery.birds(ctx, t, { x0: vx0, x1: vx1, y: 120, n: 2, size: 9, seed: 9 });
+    Scenery.skyline(ctx, vx0, vx1, GROUND, 170, 'rgba(140,165,200,.45)', 12);
+    Scenery.hills(ctx, vx0, vx1, GROUND, 60, '#b5dd8b', 4, 3);
     ctx.fillStyle = '#c8a26b'; ctx.fillRect(-2000, GROUND, VW + 4000, 2000);
-    ctx.fillStyle = '#b58d55'; ctx.fillRect(-500, GROUND, VW + 1000, 8);
-    ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(80, 70, 34, 0, 7); ctx.fill();
+    ctx.fillStyle = '#b58d55'; ctx.fillRect(-2000, GROUND, VW + 4000, 8);
+    const pr = Scenery.rng(31);
+    ctx.fillStyle = 'rgba(120,90,50,.35)';
+    for (let i = 0; i < 40; i++) { ctx.beginPath(); ctx.arc(vx0 + pr() * (vx1 - vx0), GROUND + 16 + pr() * 110, 2 + pr() * 4, 0, 7); ctx.fill(); }
+    ctx.strokeStyle = 'rgba(90,62,27,.25)'; ctx.lineWidth = 6; ctx.setLineDash([14, 10]);
+    ctx.beginPath(); ctx.moveTo(vx0, GROUND + 50); ctx.lineTo(vx1, GROUND + 50); ctx.moveTo(vx0, GROUND + 72); ctx.lineTo(vx1, GROUND + 72); ctx.stroke(); ctx.setLineDash([]);
+    [500, 975].forEach(cx => { ctx.fillStyle = '#ff7f11'; ctx.beginPath(); ctx.moveTo(cx, GROUND - 34); ctx.lineTo(cx - 12, GROUND); ctx.lineTo(cx + 12, GROUND); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillRect(cx - 7, GROUND - 20, 14, 5); });
 
     // the form: a wooden box split into numbered sections
     const fy = GROUND - 50;
@@ -471,6 +484,13 @@ function drawSlab() {
     // looking down at the fresh cement
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#7cb342'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+    { const vx0 = -ox / k, vx1 = (W - ox) / k, vy0 = -oy / k, vy1 = (H - oy) / k;
+      Scenery.tufts(ctx, vx0, vx1, vy0 + 10, 30, 12, 'rgba(51,105,30,.55)', 41);
+      Scenery.tufts(ctx, vx0, vx1, SLAB.y + SLAB.h + 40, 24, 12, 'rgba(51,105,30,.55)', 42);
+      Scenery.flowers(ctx, vx0, SLAB.x - 40, vy0 + 20, vy1 - 30, 8, 9, 43);
+      Scenery.flowers(ctx, SLAB.x + SLAB.w + 40, vx1, vy0 + 20, vy1 - 30, 8, 9, 44);
+      ctx.font = '38px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
+      ctx.fillText('🦋', SLAB.x - 70 + Math.sin(t) * 20, 80 + Math.cos(t * 1.3) * 15); }
     // wooden frame
     ctx.fillStyle = '#a0522d'; rr(SLAB.x - 20, SLAB.y - 20, SLAB.w + 40, SLAB.h + 40, 10); ctx.fill();
     const wet = 1 - drying;
@@ -537,6 +557,7 @@ if (JOB) {
 document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
 document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
 </script>
+<script src="landscape.js"></script>
 <script src="games.js"></script>
 </body>
 </html>

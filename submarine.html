@@ -298,6 +298,10 @@
         }
 
         /* Touch controls */
+        /* phone held sideways: joystick goes to the left edge, off the maze */
+        @media (orientation: landscape) and (max-height: 600px) {
+            #touchControls.active { left: calc(16px + env(safe-area-inset-left)) !important; right: auto !important; bottom: 16px !important; transform: none !important; }
+        }
         #touchControls {
             position: absolute;
             bottom: 30px;

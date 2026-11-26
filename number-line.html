@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>🛻 Number Line Jumps</title>
+    <link rel="stylesheet" href="shell.css">
+    <style> .screen { background: rgba(255, 183, 3, .93); } .screen h1 { text-shadow: 0 4px 0 #8d4b00; } .screen p { color: #5a3e1b; } </style>
+</head>
+<body>
+    <canvas id="c"></canvas>
+    <button id="speak" aria-label="Say it again">🔊</button>
+    <div id="game-nav"><button id="nav-toggle" aria-label="Games">☰</button></div>
+    <div id="nav-overlay" class="hidden">
+        <button id="nav-close" aria-label="Close">✕</button>
+        <div class="nav-links"><!-- filled from games.js --></div>
+    </div>
+    <div id="start" class="screen">
+        <h1>🛻 Number Line Jumps</h1>
+        <p>3 + 2: start on 3, jump 2 times. Where do you land?</p>
+        <p>Guess first, then jump to find out!</p>
+        <button class="big-btn" id="start-btn">Start Your Engine!</button>
+    </div>
+
+<script src="voice.js"></script>
+<script src="scenery.js"></script>
+<script src="kit.js"></script>
+<script>
+// =============================================================
+// NUMBER LINE JUMPS: adding (and later taking away) by counting on
+//  "3 + 2": the truck parks on 3.
+//  1. Guess: "Where will we land?" Tap a number (optional star).
+//     After a pause the answer glows; any tap moves on.
+//  2. Jump: one tap = one hop. Each hop is counted out loud ("4, 5!")
+//     and a dot lights up. After the last hop the truck lands with a
+//     crunch: "3 plus 2 is 5!"
+//  After 5 rounds, take-away rounds mix in: the truck faces left and
+//  hops backward ("5 take away 2 is 3").
+// =============================================================
+const canvas = document.getElementById('c');
+const ctx = Stage.init(canvas);
+const GROUND = 470, TILE0 = 70, TILE_W = 86;          // 0..10 across the arena
+const tileX = (n) => TILE0 + n * TILE_W;
+let t = 0, last = 0, stage = 'menu';                    // guess | jump | land | drive
+let a = 0, b = 0, minus = false, hops = 0, guess = null, idle = 0, round = 0, stars = 0;
+let truck = { n: 0, x: tileX(0), y: 0, air: false, face: 1, t: 0, from: 0, to: 0 };
+let particles = [], msg = null, crushed = [];
+
+function newRound() {
+    round++;
+    minus = round > 5 && Math.random() < .4;
+    if (minus) { a = 3 + Math.floor(Math.random() * 8); b = 1 + Math.floor(Math.random() * Math.min(4, a)); }
+    else { b = 1 + Math.floor(Math.random() * 4); a = Math.floor(Math.random() * (11 - b)); }
+    hops = 0; guess = null; idle = 0; crushed = [];
+    stage = 'drive';
+    truck.face = minus ? -1 : 1;
+    truck.to = a; truck.from = truck.n; truck.t = 0; truck.air = false;
+}
+const answer = () => minus ? a - b : a + b;
+const sentence = () => minus ? `${a} take away ${b}` : `${a} plus ${b}`;
+function prompt() {
+    if (stage === 'guess') return `${sentence()}. Where will the truck land? Tap a number!`;
+    if (stage === 'jump') return hops ? 'Keep jumping!' : `Tap to jump ${NUM_WORDS[b]} time${b > 1 ? 's' : ''}!`;
+    return '';
+}
+function startGuess() {
+    stage = 'guess'; idle = 0;
+    say(`We start on ${NUM_WORDS[a]}. ${sentence()}. Where will we land? Tap a number!`);
+}
+function pickGuess(n) {
+    guess = n; idle = 0;
+    tone(500 + n * 30, .12);
+    stage = 'jump';
+    say(`${NUM_WORDS[n]}? Let's find out! Tap to jump ${NUM_WORDS[b]} time${b > 1 ? 's' : ''}!`, true);
+}
+function hop() {
+    if (truck.air || stage !== 'jump') return;
+    idle = 0;
+    hops++;
+    truck.from = truck.n; truck.to = truck.n + (minus ? -1 : 1);
+    truck.air = true; truck.t = 0;
+    tone(160, .2, 'sawtooth', .08, 300);
+    say(NUM_WORDS[truck.to], true);
+}
+function landedFinal() {
+    stage = 'land';
+    const ans = answer(), right = guess === ans;
+    crushed.push(ans);
+    for (let i = 0; i < 20; i++) particles.push({ x: tileX(ans), y: GROUND - 20, vx: (Math.random() - .5) * 400, vy: -Math.random() * 350, life: 1.1, c: Math.random() < .5 ? '#ffd23f' : '#e63946' });
+    if (right) { stars++; fanfare(); rain(['⭐', '🛻', '💥', String(ans)], 20); }
+    else ding();
+    msg = { text: `${a} ${minus ? '−' : '+'} ${b} = ${ans}`, life: 3.2 };
+    say(`${sentence()} is ${NUM_WORDS[ans]}!${right ? ' You guessed it!' : ''}`);
+    setTimeout(newRound, 3400);
+}
+
+// ---------- input ----------
+canvas.addEventListener('pointerdown', (e) => {
+    if (stage === 'menu') return;
+    const p = Stage.toWorld(e);
+    if (stage === 'guess') {
+        const n = Math.round((p.x - TILE0) / TILE_W);
+        if (n >= 0 && n <= 10 && p.y > GROUND - 140 && p.y < GROUND + 80) { pickGuess(n); return; }
+        say(prompt()); return;
+    }
+    if (stage === 'jump') hop();
+});
+document.addEventListener('keydown', (e) => {
+    if (stage === 'jump' && (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight' || e.key === 'ArrowLeft')) hop();
+    if (stage === 'guess' && /^[0-9]$/.test(e.key)) pickGuess(+e.key);
+});
+document.getElementById('start-btn').addEventListener('click', () => {
+    document.getElementById('start').classList.add('hidden');
+    newRound();
+});
+document.getElementById('speak').addEventListener('click', () => say(prompt(), true));
+
+// ---------- update ----------
+function update(dt) {
+    idle += dt;
+    if (stage === 'drive') {
+        // drive (not hop) to the starting number
+        const tx = tileX(truck.to), d = tx - truck.x;
+        truck.face = d === 0 ? truck.face : Math.sign(d);
+        if (Math.abs(d) > 3) truck.x += Math.sign(d) * Math.min(Math.abs(d), 420 * dt);
+        else { truck.x = tx; truck.n = truck.to; truck.face = minus ? -1 : 1; startGuess(); }
+    }
+    if (truck.air) {
+        truck.t += dt / .55;
+        const k2 = Math.min(1, truck.t);
+        truck.x = tileX(truck.from) + (tileX(truck.to) - tileX(truck.from)) * k2;
+        truck.y = -Math.sin(k2 * Math.PI) * 120;
+        if (k2 >= 1) {
+            truck.air = false; truck.y = 0; truck.n = truck.to;
+            tone(100, .15, 'square', .1, 60);
+            if (hops >= b) landedFinal();
+        }
+    }
+    particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 700 * dt; p.life -= dt; }); particles = particles.filter(p => p.life > 0);
+    if (msg) { msg.life -= dt; if (msg.life <= 0) msg = null; }
+    if (idle > 9 && idle < 50 && stage === 'guess') { idle = 50; say(`Count ${NUM_WORDS[b]} jumps from ${NUM_WORDS[a]}... it's the glowing one!`); }
+    if (idle > 8 && stage === 'jump' && !truck.air) { idle = 0; say(prompt()); }
+}
+
+// ---------- drawing ----------
+function drawTruck(c) {
+    c.save(); c.translate(truck.x, GROUND - 26 + truck.y); c.scale(truck.face * .72, .72);
+    [-52, 52].forEach(x => {
+        c.fillStyle = '#1b1b1b'; c.beginPath(); c.arc(x, -42, 42, 0, 7); c.fill();
+        c.strokeStyle = '#444'; c.lineWidth = 6;
+        for (let k2 = 0; k2 < 8; k2++) { const ang = k2 * Math.PI / 4 + truck.x / 30; c.beginPath(); c.moveTo(x + Math.cos(ang) * 30, -42 + Math.sin(ang) * 30); c.lineTo(x + Math.cos(ang) * 42, -42 + Math.sin(ang) * 42); c.stroke(); }
+        c.fillStyle = '#ffb703'; c.beginPath(); c.arc(x, -42, 14, 0, 7); c.fill();
+    });
+    c.strokeStyle = '#9e9e9e'; c.lineWidth = 6;
+    c.beginPath(); c.moveTo(-52, -42); c.lineTo(-40, -86); c.moveTo(52, -42); c.lineTo(40, -86); c.stroke();
+    c.fillStyle = '#2a9d8f'; rr(c, -80, -122, 160, 40, 12); c.fill();
+    c.fillStyle = '#3cc4b4'; rr(c, -30, -158, 76, 42, 12); c.fill();
+    c.fillStyle = '#bde0fe'; rr(c, -20, -150, 30, 24, 5); c.fill(); rr(c, 14, -150, 26, 24, 5); c.fill();
+    c.fillStyle = '#ffd166'; c.beginPath(); c.arc(80, -104, 7, 0, 7); c.fill();
+    c.fillStyle = '#ffb703'; c.beginPath(); c.moveTo(-70, -104); c.lineTo(-30, -112); c.lineTo(-44, -100); c.lineTo(-10, -104); c.lineTo(-50, -90); c.fill();
+    c.restore();
+}
+function draw() {
+    const c = Stage.begin();
+    const { vx0, vx1, vy0, vy1 } = Stage;
+    Scenery.sky(c, vx0, vy0, vx1 - vx0, 330 - vy0, '#ffb07a', '#ffe0a8');
+    Scenery.sun(c, 120, 230, 36, t, '#ff8f4d');
+    Scenery.clouds(c, t, { x0: vx0, x1: vx1, y0: 170, y1: 260, n: 4, size: 22, seed: 141, color: 'rgba(255,230,235,.85)' });
+    Scenery.mountains(c, vx0, vx1, 330, 90, '#d9a07a', 142, false);
+    Scenery.hills(c, vx0, vx1, 330, 40, '#c99a6b', 143, 3);
+    // arena dirt + barrier tires
+    c.fillStyle = '#c47a3d'; c.fillRect(vx0, 330, vx1 - vx0, vy1 - 330);
+    c.fillStyle = '#a0522d'; c.fillRect(vx0, GROUND + 40, vx1 - vx0, vy1 - GROUND);
+    for (let x = vx0 - (vx0 % 46); x < vx1; x += 46) { c.fillStyle = '#263238'; c.beginPath(); c.ellipse(x, 340, 22, 12, 0, 0, 7); c.fill(); c.fillStyle = '#455a64'; c.beginPath(); c.ellipse(x, 340, 9, 5, 0, 0, 7); c.fill(); }
+    const pr = Scenery.rng(144); c.fillStyle = 'rgba(90,50,20,.25)';
+    for (let i = 0; i < 40; i++) { c.beginPath(); c.arc(vx0 + pr() * (vx1 - vx0), 360 + pr() * 230, 2 + pr() * 4, 0, 7); c.fill(); }
+
+    // the number line: a road of numbered tiles
+    c.fillStyle = '#5c5c5c'; rr(c, tileX(0) - 50, GROUND - 6, tileX(10) - tileX(0) + 100, 52, 14); c.fill();
+    for (let n = 0; n <= 10; n++) {
+        const x = tileX(n);
+        const isStart = (stage !== 'drive' && stage !== 'menu') && n === a;
+        const glow = stage === 'guess' && idle > 9 && n === answer();
+        const picked = guess === n;
+        c.fillStyle = glow ? '#fff3b0' : picked ? '#bde0fe' : isStart ? '#ffd166' : '#fff';
+        rr(c, x - 34, GROUND, 68, 40, 10); c.fill();
+        if (glow) { c.strokeStyle = '#ffb300'; c.lineWidth = 5; c.stroke(); }
+        label(c, String(n), x, GROUND + 21, 30, '#5a3e1b', 'rgba(255,255,255,0)');
+    }
+    // arcs for completed hops
+    for (let i = 0; i < hops - (truck.air ? 1 : 0); i++) {
+        const x0 = tileX(a + (minus ? -i : i)), x1 = tileX(a + (minus ? -(i + 1) : i + 1));
+        c.strokeStyle = '#fff'; c.lineWidth = 4; c.setLineDash([8, 7]);
+        c.beginPath(); c.moveTo(x0, GROUND - 8); c.quadraticCurveTo((x0 + x1) / 2, GROUND - 90, x1, GROUND - 8); c.stroke(); c.setLineDash([]);
+        label(c, String(i + 1), (x0 + x1) / 2, GROUND - 66, 22, '#e63946', '#fff');
+    }
+    crushed.forEach(n => emoji(c, '💥', tileX(n), GROUND - 10, 50));
+    drawTruck(c);
+
+    // the problem card
+    if (stage !== 'menu') {
+        c.fillStyle = 'rgba(255,255,255,.94)'; rr(c, 300, 22, 400, 120, 26); c.fill();
+        label(c, `${a} ${minus ? '−' : '+'} ${b} = ${stage === 'land' ? answer() : '?'}`, 500, 66, 54, '#7b2cbf', '#fff');
+        // b dots that light up as you hop
+        for (let i = 0; i < b; i++) {
+            const dx = 500 + (i - (b - 1) / 2) * 44;
+            c.fillStyle = i < hops ? '#e63946' : '#eee'; c.beginPath(); c.arc(dx, 116, 15, 0, 7); c.fill();
+            c.strokeStyle = '#e63946'; c.lineWidth = 3; c.stroke();
+        }
+    }
+    label(c, `⭐ ${stars}`, 920, 60, 30, '#ffd23f', '#7b2cbf');
+    if (stage === 'jump' && idle > 3 && !truck.air) emoji(c, '👆', truck.x + truck.face * 70, GROUND - 160 + Math.sin(t * 6) * 8, 46);
+    if (stage === 'guess' && idle > 9) emoji(c, '👆', tileX(answer()), GROUND + 80 + Math.sin(t * 6) * 6, 44);
+    particles.forEach(p => { c.globalAlpha = Math.max(0, p.life); c.fillStyle = p.c; c.fillRect(p.x - 4, p.y - 4, 8, 8); });
+    c.globalAlpha = 1;
+    if (msg) { c.globalAlpha = Math.min(1, msg.life); label(c, msg.text, 500, 240, 76, '#ffd23f', '#7b2cbf'); c.globalAlpha = 1; }
+}
+function loop(ts) {
+    const dt = last ? Math.min((ts - last) / 1000, .05) : .016;
+    last = ts; t += dt;
+    if (stage !== 'menu') update(dt);
+    draw();
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+navMenu();
+</script>
+<script src="landscape.js"></script>
+<script src="games.js"></script>
+</body>
+</html>

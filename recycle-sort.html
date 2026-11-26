@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>♻️ Sort It!</title>
+    <link rel="stylesheet" href="shell.css">
+    <style> .screen { background: rgba(46, 160, 67, .93); } .screen h1 { text-shadow: 0 4px 0 #1b5e20; } .screen p { color: #fff; } </style>
+</head>
+<body>
+    <canvas id="c"></canvas>
+    <button id="speak" aria-label="Say it again">🔊</button>
+    <div id="game-nav"><button id="nav-toggle" aria-label="Games">☰</button></div>
+    <div id="nav-overlay" class="hidden">
+        <button id="nav-close" aria-label="Close">✕</button>
+        <div class="nav-links"><!-- filled from games.js --></div>
+    </div>
+    <div id="start" class="screen">
+        <h1>♻️ Sort It!</h1>
+        <p>Things come down the belt. Tap the bin where each one goes!</p>
+        <p>Trash, recycling, or compost? Red, blue, or yellow? Circle, square, or triangle?</p>
+        <button class="big-btn" id="start-btn">Start the Belt!</button>
+    </div>
+
+<script src="voice.js"></script>
+<script src="scenery.js"></script>
+<script src="kit.js"></script>
+<script>
+// =============================================================
+// SORT IT!: sorting and classifying
+//  Rounds alternate between:
+//   - Trash / Recycle / Compost (what it's made of)
+//   - Red / Blue / Yellow (color)
+//   - Circle / Square / Triangle (shape)
+//  An item rides the belt to the middle. Tap a bin:
+//   - right: it drops in, the lid chomps, a star and a short reason
+//   - not quite: it bounces off ("boing!"), we hear why, and it hops
+//     into the right bin by itself. Always moves on.
+//  10 items per round, then the trucks come to empty the bins.
+// =============================================================
+const canvas = document.getElementById('c');
+const ctx = Stage.init(canvas);
+const BELT_Y = 250, BIN_Y = 520, CENTER = 500;
+const MODES = [
+    {
+        name: 'material', ask: 'Where does it go? Trash, recycling, or compost?',
+        bins: [
+            { id: 'trash', label: 'Trash', icon: '🗑️', color: '#607d8b' },
+            { id: 'recycle', label: 'Recycle', icon: '♻️', color: '#1e88e5' },
+            { id: 'compost', label: 'Compost', icon: '🌱', color: '#43a047' }
+        ],
+        items: [
+            ['🥫', 'recycle', 'a can', 'Cans get made into new cans!'], ['📰', 'recycle', 'newspaper', 'Paper can be made into new paper!'],
+            ['📦', 'recycle', 'a box', 'Cardboard gets recycled!'], ['🍾', 'recycle', 'a glass bottle', 'Glass can be melted and used again!'],
+            ['🧴', 'recycle', 'a plastic bottle', 'Plastic bottles get recycled!'],
+            ['🍌', 'compost', 'a banana peel', "It's food, so it goes in compost!"], ['🍎', 'compost', 'an apple core', 'Food scraps turn into dirt for plants!'],
+            ['🥕', 'compost', 'a carrot top', 'Veggies go in compost!'], ['🍂', 'compost', 'leaves', 'Leaves turn back into soil!'],
+            ['🥚', 'compost', 'egg shells', 'Egg shells go in compost!'],
+            ['🩹', 'trash', 'a used bandage', 'Bandages go in the trash.'], ['🍬', 'trash', 'a candy wrapper', 'Wrappers go in the trash.'],
+            ['🧽', 'trash', 'an old sponge', 'Old sponges go in the trash.'], ['🎈', 'trash', 'a popped balloon', 'Popped balloons go in the trash.']
+        ]
+    },
+    {
+        name: 'color', ask: 'What color is it?',
+        bins: [
+            { id: 'red', label: 'Red', icon: '🔴', color: '#e53935' },
+            { id: 'blue', label: 'Blue', icon: '🔵', color: '#1e88e5' },
+            { id: 'yellow', label: 'Yellow', icon: '🟡', color: '#fbc02d' }
+        ],
+        items: [
+            ['🍎', 'red', 'an apple', 'Apples are red!'], ['🍓', 'red', 'a strawberry', 'Strawberries are red!'], ['🚒', 'red', 'a fire truck', 'Fire trucks are red!'],
+            ['❤️', 'red', 'a heart', 'This heart is red!'], ['🌹', 'red', 'a rose', 'This rose is red!'],
+            ['🫐', 'blue', 'blueberries', 'Blueberries are blue!'], ['🐳', 'blue', 'a whale', 'This whale is blue!'], ['💙', 'blue', 'a blue heart', 'This heart is blue!'],
+            ['🧢', 'blue', 'a hat', 'This hat is blue!'], ['🦋', 'blue', 'a butterfly', 'This butterfly is blue!'],
+            ['🍌', 'yellow', 'a banana', 'Bananas are yellow!'], ['🌻', 'yellow', 'a sunflower', 'Sunflowers are yellow!'], ['🐥', 'yellow', 'a chick', 'Chicks are yellow!'],
+            ['⭐', 'yellow', 'a star', 'This star is yellow!'], ['🧀', 'yellow', 'cheese', 'Cheese is yellow!']
+        ]
+    },
+    {
+        name: 'shape', ask: 'What shape is it?',
+        bins: [
+            { id: 'circle', label: 'Circle', icon: '⚪', color: '#8e24aa' },
+            { id: 'square', label: 'Square', icon: '🟦', color: '#f4511e' },
+            { id: 'triangle', label: 'Triangle', icon: '🔺', color: '#00897b' }
+        ],
+        items: [
+            ['⚽', 'circle', 'a ball', 'A ball is round, like a circle!'], ['🍊', 'circle', 'an orange', 'An orange is round!'], ['🍩', 'circle', 'a donut', 'A donut is a circle!'],
+            ['🪙', 'circle', 'a coin', 'A coin is a circle!'], ['🌕', 'circle', 'the moon', 'A full moon is a circle!'], ['🍪', 'circle', 'a cookie', 'A cookie is a circle!'],
+            ['📦', 'square', 'a box', 'This box has square sides!'], ['🎁', 'square', 'a present', 'This present is a square!'], ['🧇', 'square', 'a waffle', 'This waffle is a square!'],
+            ['🖼️', 'square', 'a picture frame', 'This frame is a square!'], ['🔲', 'square', 'a square', 'Four sides, all the same!'],
+            ['🍕', 'triangle', 'pizza', 'A slice of pizza is a triangle!'], ['⛺', 'triangle', 'a tent', 'A tent is a triangle!'], ['🔺', 'triangle', 'a triangle', 'Three sides and three corners!'],
+            ['🍙', 'triangle', 'a rice ball', 'This rice ball is a triangle!'], ['🎄', 'triangle', 'a tree', 'This tree is a triangle!']
+        ]
+    }
+];
+const PER_ROUND = 10;
+let t = 0, last = 0, stage = 'menu';     // ride | choose | fly | bounce | trucks
+let modeI = 0, mode = MODES[0], item = null, count = 0, stars = 0, idle = 0, queue = [];
+let chomps = {}, particles = [], msg = null, beltOff = 0;
+
+function binX(i) { const n = mode.bins.length; return CENTER + (i - (n - 1) / 2) * (n === 2 ? 320 : 280); }
+function binOf(id) { return mode.bins.findIndex(b => b.id === id); }
+function newRound() {
+    mode = MODES[modeI % MODES.length];
+    queue = mode.items.slice().sort(() => Math.random() - .5);
+    count = 0; chomps = {};
+    say(`${mode.name === 'material' ? 'Trash, recycling, or compost?' : mode.name === 'color' ? 'Sort by color!' : 'Sort by shape!'} Here comes the belt!`);
+    nextItem();
+}
+function nextItem() {
+    if (!queue.length) queue = mode.items.slice().sort(() => Math.random() - .5);
+    const [e, bin, name, why] = queue.pop();
+    item = { e, bin, name, why, x: -80, y: BELT_Y - 40, size: 84, vx: 0, vy: 0 };
+    stage = 'ride'; idle = 0;
+}
+function prompt() { return item ? `${mode.ask} It's ${item.name}.` : ''; }
+function choose(i) {
+    if (stage !== 'choose') return;
+    const bin = mode.bins[i];
+    idle = 0;
+    if (bin.id === item.bin) { flyTo(i, true); say(`${bin.label}! ${item.why}`, true); }
+    else {
+        stage = 'bounce'; boing();
+        item.target = binOf(item.bin);
+        item.vx = (binX(i) - item.x) / .35; item.vy = -200; item.t = 0; item.wrongBin = i;
+        say(`Boing! ${item.why}`, true);
+    }
+}
+function flyTo(i, right) {
+    stage = 'fly';
+    item.target = i; item.t = 0; item.right = right;
+    item.fx = item.x; item.fy = item.y;
+    tone(600, .12, 'triangle', .15, 900);
+}
+function dropped() {
+    const i = item.target;
+    chomps[i] = 1;
+    tone(180, .12, 'square', .1, 90);
+    if (item.right) { stars++; ding(); for (let k2 = 0; k2 < 14; k2++) particles.push({ x: binX(i), y: BIN_Y - 120, vx: (Math.random() - .5) * 300, vy: -Math.random() * 300, life: 1, c: '#FFD93D' }); }
+    count++;
+    item = null;
+    stage = 'wait';
+    if (count >= PER_ROUND) { setTimeout(roundDone, 900); stage = 'trucks'; }
+    else setTimeout(nextItem, 900);
+}
+function roundDone() {
+    fanfare();
+    say(`Ten things sorted! Great sorting!`);
+    rain(['♻️', '⭐', '🗑️', '🌱', '🎉'], 30);
+    msg = { text: 'All sorted! ⭐', life: 3 };
+    setTimeout(() => { modeI++; newRound(); }, 3500);
+}
+
+// ---------- input ----------
+canvas.addEventListener('pointerdown', (e) => {
+    if (stage === 'menu') return;
+    const p = Stage.toWorld(e);
+    if (stage === 'choose') {
+        for (let i = 0; i < mode.bins.length; i++) if (Math.abs(p.x - binX(i)) < 120 && p.y > BIN_Y - 200) { choose(i); return; }
+        say(prompt(), true);
+    }
+});
+document.getElementById('start-btn').addEventListener('click', () => {
+    document.getElementById('start').classList.add('hidden');
+    newRound();
+});
+document.getElementById('speak').addEventListener('click', () => say(prompt(), true));
+
+// ---------- update ----------
+function update(dt) {
+    idle += dt;
+    if (stage === 'ride') {
+        beltOff += 200 * dt;
+        item.x += 300 * dt;
+        if (item.x >= CENTER) { item.x = CENTER; stage = 'choose'; say(prompt()); }
+    }
+    if (stage === 'bounce') {
+        item.t += dt;
+        item.x += item.vx * dt; item.y += item.vy * dt; item.vy += 900 * dt;
+        if (item.t > .35 && item.vx) { item.vx = 0; item.vy = -420; tone(400, .1, 'sine', .1, 250); }
+        if (item.t > .9) flyTo(item.target, false);
+    }
+    if (stage === 'fly') {
+        item.t += dt / .6;
+        const k2 = Math.min(1, item.t);
+        item.x = item.fx + (binX(item.target) - item.fx) * k2;
+        item.y = item.fy + (BIN_Y - 150 - item.fy) * k2 - Math.sin(k2 * Math.PI) * 120;
+        if (k2 >= 1) dropped();
+    }
+    Object.keys(chomps).forEach(i => { chomps[i] = Math.max(0, chomps[i] - dt * 2.5); });
+    particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 600 * dt; p.life -= dt; }); particles = particles.filter(p => p.life > 0);
+    if (msg) { msg.life -= dt; if (msg.life <= 0) msg = null; }
+    if (idle > 9 && idle < 50 && stage === 'choose') { idle = 50; say(`${mode.bins[binOf(item.bin)].label}! Tap the glowing bin!`); }
+}
+
+// ---------- drawing ----------
+function drawBin(c, i) {
+    const b = mode.bins[i], x = binX(i), y = BIN_Y;
+    const glow = stage === 'choose' && idle > 9 && item && item.bin === b.id;
+    if (glow) { c.fillStyle = 'rgba(255,215,64,.45)'; c.beginPath(); c.ellipse(x, y - 80, 130 + Math.sin(t * 6) * 6, 120, 0, 0, 7); c.fill(); }
+    c.fillStyle = b.color;
+    c.beginPath(); c.moveTo(x - 90, y - 160); c.lineTo(x + 90, y - 160); c.lineTo(x + 76, y); c.lineTo(x - 76, y); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.18)'; for (let k2 = 0; k2 < 3; k2++) c.fillRect(x - 60 + k2 * 50, y - 140, 14, 120);
+    // lid (flips open when something drops in)
+    const open = chomps[i] || 0;
+    c.save(); c.translate(x - 96, y - 166); c.rotate(-open * .9);
+    c.fillStyle = b.color; rr(c, 0, -10, 192, 22, 8); c.fill();
+    c.fillStyle = 'rgba(0,0,0,.2)'; rr(c, 0, 4, 192, 8, 4); c.fill();
+    c.restore();
+    c.fillStyle = '#fff'; rr(c, x - 64, y - 120, 128, 80, 16); c.fill();
+    if (mode.name === 'shape') {
+        c.fillStyle = b.color; c.beginPath();
+        if (b.id === 'circle') c.arc(x, y - 92, 17, 0, 7);
+        else if (b.id === 'square') c.rect(x - 16, y - 108, 32, 32);
+        else { c.moveTo(x, y - 110); c.lineTo(x + 19, y - 76); c.lineTo(x - 19, y - 76); c.closePath(); }
+        c.fill();
+    } else emoji(c, b.icon, x, y - 92, 36);
+    label(c, b.label, x, y - 56, 24, '#333', '#fff');
+}
+function draw() {
+    const c = Stage.begin();
+    const { vx0, vx1, vy0, vy1 } = Stage;
+    Scenery.sky(c, vx0, vy0, vx1 - vx0, 330 - vy0);
+    Scenery.sun(c, 870, 70, 30, t);
+    Scenery.clouds(c, t, { x0: vx0, x1: vx1, y0: 30, y1: 130, n: 4, size: 24, seed: 151 });
+    Scenery.birds(c, t, { x0: vx0, x1: vx1, y: 100, n: 2, size: 8, seed: 152 });
+    Scenery.hills(c, vx0, vx1, 330, 70, '#b5dd8b', 153, 3);
+    Scenery.trees(c, [60, 940, 860, -60, 1060], 320, 90, { kind: 'mixed', seed: 154 });
+    // recycling center wall + floor
+    c.fillStyle = '#eceff1'; c.fillRect(vx0, 320, vx1 - vx0, BIN_Y - 320 + 10);
+    c.fillStyle = '#cfd8dc'; for (let x = vx0 - (vx0 % 80); x < vx1; x += 80) c.fillRect(x, 320, 4, BIN_Y - 320);
+    c.fillStyle = '#90a4ae'; c.fillRect(vx0, BIN_Y, vx1 - vx0, vy1 - BIN_Y);
+    c.fillStyle = '#78909c'; c.fillRect(vx0, BIN_Y, vx1 - vx0, 8);
+    // conveyor belt
+    c.fillStyle = '#455a64'; rr(c, vx0 - 20, BELT_Y, CENTER + 120 - vx0, 34, 14); c.fill();
+    c.fillStyle = '#263238';
+    for (let x = vx0 - 40 + (beltOff % 40); x < CENTER + 100; x += 40) c.fillRect(x, BELT_Y + 6, 18, 22);
+    c.fillStyle = '#90a4ae'; [vx0 + 30, CENTER + 90].forEach(x => { c.beginPath(); c.arc(x, BELT_Y + 17, 15, 0, 7); c.fill(); });
+    c.fillStyle = '#607d8b'; c.fillRect(CENTER + 70, BELT_Y + 34, 14, 120); c.fillRect(vx0 + 40, BELT_Y + 34, 14, 120);
+    for (let i = 0; i < mode.bins.length; i++) drawBin(c, i);
+    // the item
+    if (item) {
+        c.fillStyle = 'rgba(0,0,0,.15)';
+        if (stage === 'ride' || stage === 'choose') { c.beginPath(); c.ellipse(item.x, BELT_Y - 2, item.size * .45, 6, 0, 0, 7); c.fill(); }
+        emoji(c, item.e, item.x, item.y - (stage === 'choose' ? Math.abs(Math.sin(t * 4)) * 8 : 0) - (item.size - 84) / 2, item.size);
+    }
+    // header + progress
+    c.fillStyle = 'rgba(255,255,255,.94)'; rr(c, 280, 16, 440, 64, 20); c.fill();
+    label(c, mode.name === 'material' ? 'Trash, Recycle or Compost?' : mode.name === 'color' ? 'Sort by Color!' : 'Sort by Shape!', 500, 48, 30, '#2e7d32', '#fff');
+    for (let i = 0; i < PER_ROUND; i++) { c.globalAlpha = i < count ? 1 : .25; emoji(c, '⭐', 285 + i * 48, 106, 30); }
+    c.globalAlpha = 1;
+    label(c, `⭐ ${stars}`, 920, 150, 28, '#ffd23f', '#2e7d32');
+    if (stage === 'choose' && idle > 9) emoji(c, '👆', binX(binOf(item.bin)) + 40, BIN_Y + 40 + Math.sin(t * 6) * 6, 46);
+    particles.forEach(p => { c.globalAlpha = Math.max(0, p.life); c.fillStyle = p.c; c.beginPath(); c.arc(p.x, p.y, 6, 0, 7); c.fill(); });
+    c.globalAlpha = 1;
+    if (msg) { c.globalAlpha = Math.min(1, msg.life); label(c, msg.text, 500, 200, 64, '#ffd23f', '#2e7d32'); c.globalAlpha = 1; }
+}
+function loop(ts) {
+    const dt = last ? Math.min((ts - last) / 1000, .05) : .016;
+    last = ts; t += dt;
+    if (stage !== 'menu') update(dt);
+    draw();
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+navMenu();
+</script>
+<script src="landscape.js"></script>
+<script src="games.js"></script>
+</body>
+</html>

@@ -46,6 +46,8 @@
         <button class="big-btn" id="start-btn">Open the Car Wash!</button>
     </div>
 
+<script src="voice.js"></script>
+<script src="scenery.js"></script>
 <script>
 // =============================================================
 // CAR WASH WORDS: blending CVC words
@@ -95,15 +97,7 @@ function tone(f, d = .15, type = 'triangle', v = .18, slideTo, delay = 0) {
         o.connect(g).connect(AC.destination); o.start(n); o.stop(n + d);
     } catch (e) { }
 }
-function say(text, rate = .8) {
-    try {
-        if (!('speechSynthesis' in window)) return;
-        speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.rate = rate; u.pitch = 1.15;
-        speechSynthesis.speak(u);
-    } catch (e) { }
-}
+function say(text, rate = .8, now = false) { Voice.say(text, { rate, now }); }
 // spray noise (filtered white noise)
 function spraySound(dur = 1) {
     try {
@@ -160,7 +154,7 @@ function arrived() {
         stage = 'spraying'; sprayT = 1.3;
         const L = word[0][station];
         spraySound(1.1);
-        setTimeout(() => say(SOUND[L], .7), 250);
+        setTimeout(() => say(SOUND[L], .7, true), 250);
         car.letters.push({ ch: L, x: 0, pop: 0 });
         car.dirt = Math.max(0, car.dirt - .34);
     } else {
@@ -281,10 +275,24 @@ function drawScene() {
     const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
     g.addColorStop(0, '#6ec6ff'); g.addColorStop(1, '#d7f0ff');
     ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
+    const vx0 = -ox / k - 20, vx1 = (W - ox) / k + 20;
+    Scenery.sun(ctx, 110, 120, 34, t);
+    Scenery.clouds(ctx, t, { x0: vx0, x1: vx1, y0: 90, y1: 190, n: 5, size: 26, seed: 11 });
+    Scenery.birds(ctx, t, { x0: vx0, x1: vx1, y: 130, n: 3, size: 9 });
+    Scenery.hills(ctx, vx0, vx1, ROAD - 40, 130, '#c5e8a0', 2, 3);
+    Scenery.hills(ctx, vx0, vx1, ROAD - 40, 80, '#a8db7d', 5, 4);
+    Scenery.trees(ctx, [40, 150, 975, 1080, -80], ROAD - 36, 110, { kind: 'mixed', seed: 3 });
     ctx.fillStyle = '#9ad46b'; ctx.fillRect(-2000, ROAD - 40, VW + 4000, 40);
+    Scenery.tufts(ctx, vx0, vx1, ROAD - 34, 26, 9, 'rgba(56,142,60,.6)', 8);
     ctx.fillStyle = '#5c5c5c'; ctx.fillRect(-2000, ROAD, VW + 4000, 2000);
+    ctx.fillStyle = '#6b6b6b'; ctx.fillRect(-2000, ROAD, VW + 4000, 6);
     ctx.fillStyle = '#fff';
-    for (let x = -60; x < VW + 60; x += 90) ctx.fillRect(x + ((t * 0) % 90), ROAD + 50, 50, 8);
+    for (let x = -60; x < VW + 60; x += 90) ctx.fillRect(x, ROAD + 50, 50, 8);
+    // puddles + bubbles drifting up from the wash
+    ctx.fillStyle = 'rgba(120,190,255,.35)';
+    [[330, ROAD + 14, 60], [640, ROAD + 18, 46]].forEach(([x, y, w]) => { ctx.beginPath(); ctx.ellipse(x, y, w, 7, 0, 0, 7); ctx.fill(); });
+    ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 8; i++) { const bx = 260 + i * 90 + Math.sin(t + i) * 10, by = 200 - ((t * 25 + i * 40) % 160); ctx.beginPath(); ctx.arc(bx, by, 5 + i % 3 * 2, 0, 7); ctx.stroke(); }
     // building behind the arches
     ctx.fillStyle = '#fff3e0'; rr(220, 150, 720, ROAD - 150, 16); ctx.fill();
     ctx.fillStyle = '#ff4f9a'; rr(330, 14, 340, 58, 20); ctx.fill();
@@ -414,6 +422,7 @@ requestAnimationFrame(loop);
 document.getElementById('nav-toggle').addEventListener('click', () => document.getElementById('nav-overlay').classList.remove('hidden'));
 document.getElementById('nav-close').addEventListener('click', () => document.getElementById('nav-overlay').classList.add('hidden'));
 </script>
+<script src="landscape.js"></script>
 <script src="games.js"></script>
 </body>
 </html>
